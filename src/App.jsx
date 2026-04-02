@@ -32,7 +32,6 @@ const NAV = [
   { path: '/monthly', label: 'Monthly', icon: icons.monthly },
   { path: '/debt', label: 'Debt', icon: icons.debt },
   { path: '/salary', label: 'Salary', icon: icons.salary },
-  { path: '/chat', label: 'Ask AI', icon: icons.chat },
 ];
 
 function App() {
@@ -75,27 +74,6 @@ function App() {
         </div>
         <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
-            Business
-          </div>
-          <NavLink
-            to="/business"
-            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
-          >
-            <span className="nav-icon">{icons.business}</span>
-            <span>Expenses</span>
-            {bizExpenses.items?.length > 0 && (
-              <span style={{
-                marginLeft: 'auto', fontSize: 11, fontWeight: 700,
-                background: 'rgba(99,102,241,0.15)', color: 'var(--accent-hover)',
-                borderRadius: 999, padding: '1px 7px',
-              }}>
-                {bizExpenses.items.length}
-              </span>
-            )}
-          </NavLink>
-        </div>
-        <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
             Scenarios
           </div>
           <NavLink
@@ -117,6 +95,27 @@ function App() {
         </div>
         <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
+            Business
+          </div>
+          <NavLink
+            to="/business"
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <span className="nav-icon">{icons.business}</span>
+            <span>Expenses</span>
+            {bizExpenses.items?.length > 0 && (
+              <span style={{
+                marginLeft: 'auto', fontSize: 11, fontWeight: 700,
+                background: 'rgba(99,102,241,0.15)', color: 'var(--accent-hover)',
+                borderRadius: 999, padding: '1px 7px',
+              }}>
+                {bizExpenses.items.length}
+              </span>
+            )}
+          </NavLink>
+        </div>
+        <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
             Scheduling
           </div>
           <NavLink
@@ -125,6 +124,18 @@ function App() {
           >
             <span className="nav-icon">{icons.schedule}</span>
             <span>Family Schedule</span>
+          </NavLink>
+        </div>
+        <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
+            AI
+          </div>
+          <NavLink
+            to="/chat"
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <span className="nav-icon">{icons.chat}</span>
+            <span>Ask AI</span>
           </NavLink>
         </div>
       </nav>
@@ -138,7 +149,7 @@ function App() {
           <Route path="/monthly/:monthSlug" element={<MonthlyBudget bills={bills} months={months} setMonths={setMonths} paycheckConfig={paycheckConfig} />} />
           <Route path="/debt" element={<Debt debts={debts} setDebts={setDebts} />} />
           <Route path="/salary" element={<SalaryCalc paycheckConfig={paycheckConfig} setPaycheckConfig={setPaycheckConfig} months={months} setMonths={setMonths} />} />
-          <Route path="/chat" element={<Chat bills={bills} debts={debts} months={months} paycheckConfig={paycheckConfig} chatMessages={chatMessages} setChatMessages={setChatMessages} />} />
+          <Route path="/chat" element={<Chat bills={bills} debts={debts} months={months} paycheckConfig={paycheckConfig} chatMessages={chatMessages} setChatMessages={setChatMessages} bizExpenses={bizExpenses} />} />
           <Route path="/business" element={<BusinessExpenses bizExpenses={bizExpenses} setBizExpenses={setBizExpenses} />} />
           <Route path="/schedule" element={<Schedule sitterCoverage={sitterCoverage} setSitterCoverage={setSitterCoverage} />} />
           <Route path="/playgrounds" element={

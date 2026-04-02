@@ -49,6 +49,21 @@ Maka & Jack (kids, Lake Travis ISD):
   Early release days: ${kidsEarly.join('; ')}`;
 }
 
+function buildBizContext(bizExpenses) {
+  const items = bizExpenses?.items || [];
+  if (items.length === 0) return '';
+  const total = items.reduce((s, i) => s + i.amount, 0);
+  const byCategory = {};
+  items.forEach(i => { byCategory[i.category] = (byCategory[i.category] || 0) + i.amount; });
+  const catLines = Object.entries(byCategory).sort((a, b) => b[1] - a[1])
+    .map(([cat, amt]) => `  ${cat}: ${fmt(amt)} (${Math.round(amt / total * 100)}%)`)
+    .join('\n');
+  const itemLines = items.map(i => `  ${i.date || 'no date'} | ${i.description} | ${i.category} | ${fmt(i.amount)}`).join('\n');
+  return `\n\nBUSINESS EXPENSES (${fmt(total)} total, ${items.length} items):
+By category:\n${catLines}
+All items:\n${itemLines}`;
+}
+
 function buildBudgetContext(bills, debts, months, paycheckConfig) {
   const allMonths = computeAllMonths(months, bills);
 
@@ -97,7 +112,7 @@ Average overage/month: ${dec27 ? fmt(dec27.monthFinal / months.length) : 'N/A'}
 ${buildScheduleContext()}`;
 }
 
-export default function Chat({ bills, debts, months, paycheckConfig, chatMessages, setChatMessages }) {
+export default function Chat({ bills, debts, months, paycheckConfig, chatMessages, setChatMessages, bizExpenses }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -121,7 +136,7 @@ export default function Chat({ bills, debts, months, paycheckConfig, chatMessage
     setError('');
 
     try {
-      const budgetContext = buildBudgetContext(bills, debts, months, paycheckConfig);
+      const budgetContext = buildBudgetContext(bills, debts, months, paycheckConfig) + buildBizContext(bizExpenses);
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
