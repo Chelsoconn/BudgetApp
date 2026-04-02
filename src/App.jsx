@@ -26,8 +26,10 @@ const icons = {
   business: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><path d="M12 12h.01"/></svg>,
 };
 
-const NAV = [
+const NAV_TOP = [
   { path: '/dashboard', label: 'Dashboard', icon: icons.dashboard },
+];
+const NAV_BUDGET = [
   { path: '/bills', label: 'Bills', icon: icons.bills },
   { path: '/monthly', label: 'Monthly', icon: icons.monthly },
   { path: '/debt', label: 'Debt', icon: icons.debt },
@@ -61,7 +63,22 @@ function App() {
           </div>
         </div>
         <div className="nav-section">
-          {NAV.map((item) => (
+          {NAV_TOP.map((item) => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span>{item.label}</span>
+            </NavLink>
+          ))}
+        </div>
+        <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
+            Budget
+          </div>
+          {NAV_BUDGET.map((item) => (
             <NavLink
               key={item.path}
               to={item.path}
