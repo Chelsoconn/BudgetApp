@@ -133,9 +133,24 @@ function Schedule() {
       <div className="card">
         <div className="sched-header">
           <button className="btn btn-ghost" onClick={prev}>&larr;</button>
-          <h3 style={{ margin: 0, flex: 1, textAlign: 'center' }}>
-            {MONTHS[viewMonth]} {viewYear}
-          </h3>
+          <div style={{ flex: 1, display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }}>
+            <select
+              value={viewMonth}
+              onChange={e => setViewMonth(Number(e.target.value))}
+              className="sched-select"
+            >
+              {MONTHS.map((m, i) => <option key={i} value={i}>{m}</option>)}
+            </select>
+            <select
+              value={viewYear}
+              onChange={e => setViewYear(Number(e.target.value))}
+              className="sched-select"
+            >
+              {Array.from({ length: 5 }, (_, i) => today.getFullYear() - 1 + i).map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
           <button className="btn btn-ghost" onClick={goToday} style={{ fontSize: 12 }}>Today</button>
           <button className="btn btn-ghost" onClick={next}>&rarr;</button>
         </div>

@@ -600,3 +600,13 @@
 .sched-label { font-size: 10px; color: var(--text-muted); }
 .sched-cell.work .sched-label { color: rgba(239,68,68,0.8); }
 .sched-cell.home .sched-label { color: rgba(34,197,94,0.8); }
+.sched-select {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
