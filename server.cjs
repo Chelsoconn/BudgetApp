@@ -49,6 +49,49 @@ app.put('/api/data/:key', async (req, res) => {
   }
 });
 
+// POST /api/chat — OpenAI chat with budget context
+app.post('/api/chat', async (req, res) => {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) return res.status(500).json({ error: 'OPENAI_API_KEY not set' });
+
+  const { messages, budgetContext } = req.body;
+
+  const systemPrompt = `You are a helpful financial advisor assistant for a household budget app. You have full context of the user's budget data below. Answer questions, give advice, run scenarios, and help them understand their finances. Be concise and practical. Use dollar amounts when relevant.
+
+BUDGET DATA:
+${budgetContext}`;
+
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: 'gpt-4o-mini',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages,
+        ],
+        max_tokens: 1000,
+      }),
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      console.error('OpenAI error:', err);
+      return res.status(500).json({ error: 'OpenAI API error' });
+    }
+
+    const data = await response.json();
+    res.json({ reply: data.choices[0].message.content });
+  } catch (err) {
+    console.error('Chat error:', err);
+    res.status(500).json({ error: 'Chat request failed' });
+  }
+});
+
 // SPA fallback (must be last)
 app.get('{*path}', (req, res) => {
   res.sendFile(path.join(__dirname, 'dist', 'index.html'));

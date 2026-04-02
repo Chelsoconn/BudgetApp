@@ -10,6 +10,7 @@ import MonthlyBudget from './components/MonthlyBudget';
 import Debt from './components/Debt';
 import SalaryCalc from './components/SalaryCalc';
 import Playground from './components/Playground';
+import Chat from './components/Chat';
 
 // Inline SVG icons
 const icons = {
@@ -19,6 +20,7 @@ const icons = {
   debt: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>,
   salary: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>,
   playground: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.375 2.625a1 1 0 0 1 3 3l-9.013 9.014a2 2 0 0 1-.853.505l-2.873.84a.5.5 0 0 1-.62-.62l.84-2.873a2 2 0 0 1 .506-.852z"/></svg>,
+  chat: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>,
 };
 
 const NAV = [
@@ -27,6 +29,7 @@ const NAV = [
   { path: '/monthly', label: 'Monthly', icon: icons.monthly },
   { path: '/debt', label: 'Debt', icon: icons.debt },
   { path: '/salary', label: 'Salary', icon: icons.salary },
+  { path: '/chat', label: 'Ask AI', icon: icons.chat },
 ];
 
 function App() {
@@ -97,6 +100,7 @@ function App() {
           <Route path="/monthly/:monthSlug" element={<MonthlyBudget bills={bills} months={months} setMonths={setMonths} paycheckConfig={paycheckConfig} />} />
           <Route path="/debt" element={<Debt debts={debts} setDebts={setDebts} />} />
           <Route path="/salary" element={<SalaryCalc paycheckConfig={paycheckConfig} setPaycheckConfig={setPaycheckConfig} months={months} setMonths={setMonths} />} />
+          <Route path="/chat" element={<Chat bills={bills} debts={debts} months={months} paycheckConfig={paycheckConfig} />} />
           <Route path="/playgrounds" element={
             <Playground
               playgrounds={playgrounds} setPlaygrounds={setPlaygrounds}

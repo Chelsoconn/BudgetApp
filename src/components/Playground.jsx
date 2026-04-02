@@ -7,6 +7,7 @@ import Bills from './Bills';
 import MonthlyBudget from './MonthlyBudget';
 import Debt from './Debt';
 import SalaryCalc from './SalaryCalc';
+import Chat from './Chat';
 
 const TABS = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -14,6 +15,7 @@ const TABS = [
   { id: 'monthly', label: 'Monthly' },
   { id: 'debt', label: 'Debt' },
   { id: 'salary', label: 'Salary' },
+  { id: 'chat', label: 'Ask AI' },
 ];
 
 export default function Playground({ playgrounds, setPlaygrounds, mainBills, mainDebts, mainMonths, mainPaycheckConfig }) {
@@ -238,6 +240,14 @@ export default function Playground({ playgrounds, setPlaygrounds, mainBills, mai
           setPaycheckConfig={(pc) => updatePg({ paycheckConfig: pc })}
           months={current.months}
           setMonths={(m) => updatePg({ months: m })}
+        />
+      )}
+      {activeTab === 'chat' && (
+        <Chat
+          bills={current.bills}
+          debts={current.debts}
+          months={current.months}
+          paycheckConfig={current.paycheckConfig}
         />
       )}
     </div>
