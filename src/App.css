@@ -605,6 +605,8 @@
   line-height: 1;
 }
 /* Sitter coverage tracker */
+.sitter-item { border-radius: 6px; }
+.sitter-item.covered { opacity: 0.65; }
 .sitter-row {
   display: flex;
   align-items: center;
@@ -617,7 +619,17 @@
   border: 1px solid transparent;
 }
 .sitter-row:hover { background: var(--surface2); }
-.sitter-row.covered { opacity: 0.55; }
+.sitter-note {
+  display: block;
+  width: calc(100% - 52px);
+  margin: 0 10px 8px 40px;
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--surface2);
+  color: var(--text);
+}
 .sitter-check {
   width: 20px;
   height: 20px;

@@ -227,11 +227,31 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
   }
 
   const sitterDays = useMemo(() => computeSitterDays(), []);
-  const coveredCount = sitterDays.filter(d => sitterCoverage[d.key]).length;
+  // Normalize: old boolean values -> { covered, note }
+  const getEntry = (dayKey) => {
+    const v = sitterCoverage[dayKey];
+    if (!v) return { covered: false, note: '' };
+    if (typeof v === 'boolean') return { covered: v, note: '' };
+    return v;
+  };
+
+  const coveredCount = sitterDays.filter(d => getEntry(d.key).covered).length;
   const uncoveredCount = sitterDays.length - coveredCount;
 
   const toggleCoverage = useCallback((dayKey) => {
-    setSitterCoverage(prev => ({ ...prev, [dayKey]: !prev[dayKey] }));
+    setSitterCoverage(prev => {
+      const entry = prev[dayKey];
+      const old = !entry ? { covered: false, note: '' } : typeof entry === 'boolean' ? { covered: entry, note: '' } : entry;
+      return { ...prev, [dayKey]: { ...old, covered: !old.covered } };
+    });
+  }, [setSitterCoverage]);
+
+  const updateNote = useCallback((dayKey, note) => {
+    setSitterCoverage(prev => {
+      const entry = prev[dayKey];
+      const old = !entry ? { covered: false, note: '' } : typeof entry === 'boolean' ? { covered: entry, note: '' } : entry;
+      return { ...prev, [dayKey]: { ...old, note } };
+    });
   }, [setSitterCoverage]);
 
   // Group sitter days by month
@@ -349,30 +369,41 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
             <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>
               {group.label}
               <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
-                ({group.days.filter(d => !sitterCoverage[d.key]).length} uncovered)
+                ({group.days.filter(d => !getEntry(d.key).covered).length} uncovered)
               </span>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               {group.days.map(d => {
-                const covered = !!sitterCoverage[d.key];
+                const entry = getEntry(d.key);
                 return (
-                  <div
-                    key={d.key}
-                    onClick={() => toggleCoverage(d.key)}
-                    className={`sitter-row${covered ? ' covered' : ''}`}
-                  >
-                    <span className={`sitter-check${covered ? ' checked' : ''}`}>
-                      {covered ? '✓' : ''}
-                    </span>
-                    <span className="sitter-date">
-                      {DAYS[d.date.getDay()]} {SHORT_MONTHS[d.date.getMonth()]} {d.date.getDate()}
-                    </span>
-                    <span className={`sitter-type ${d.type}`}>
-                      {d.type === 'early' ? 'Half Day' : 'Full Day'}
-                    </span>
-                    <span className={`sitter-status ${covered ? 'ok' : 'need'}`}>
-                      {covered ? 'Covered' : 'Needs Sitter'}
-                    </span>
+                  <div key={d.key} className={`sitter-item${entry.covered ? ' covered' : ''}`}>
+                    <div
+                      className="sitter-row"
+                      onClick={() => toggleCoverage(d.key)}
+                    >
+                      <span className={`sitter-check${entry.covered ? ' checked' : ''}`}>
+                        {entry.covered ? '✓' : ''}
+                      </span>
+                      <span className="sitter-date">
+                        {DAYS[d.date.getDay()]} {SHORT_MONTHS[d.date.getMonth()]} {d.date.getDate()}
+                      </span>
+                      <span className={`sitter-type ${d.type}`}>
+                        {d.type === 'early' ? 'Half Day' : 'Full Day'}
+                      </span>
+                      <span className={`sitter-status ${entry.covered ? 'ok' : 'need'}`}>
+                        {entry.covered ? 'Covered' : 'Needs Sitter'}
+                      </span>
+                    </div>
+                    {entry.covered && (
+                      <input
+                        className="sitter-note"
+                        type="text"
+                        placeholder="Who's watching? Details..."
+                        value={entry.note}
+                        onClick={e => e.stopPropagation()}
+                        onChange={e => updateNote(d.key, e.target.value)}
+                      />
+                    )}
                   </div>
                 );
               })}
