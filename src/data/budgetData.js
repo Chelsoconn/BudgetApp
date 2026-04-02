@@ -79,7 +79,7 @@ function daysSinceEpoch(y, m, d) {
 }
 
 // Reference: Friday April 3, 2026 = cycle position 0 (Small)
-// Pattern: S(0), B(1), S(2), repeating
+// Pattern: S(0), B(1), S(2), repeating → S, B, S, S, B, S, ...
 const cycleRefDays = daysSinceEpoch(2026, 3, 3);
 
 function generatePaychecks(year, monthIdx) {
