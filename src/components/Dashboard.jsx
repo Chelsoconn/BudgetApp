@@ -8,8 +8,12 @@ export default function Dashboard({ bills, debts, months }) {
 
   const allMonths = useMemo(() => computeAllMonths(months, bills), [months, bills]);
 
-  // Current month = April 2026
-  const curIdx = months.findIndex((m) => m.year === 2026 && m.name === 'April');
+  // Current month = based on today's date
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const now = new Date();
+  const curMonthName = monthNames[now.getMonth()];
+  const curYear = now.getFullYear();
+  const curIdx = months.findIndex((m) => m.year === curYear && m.name === curMonthName);
   const currentMonth = months[curIdx >= 0 ? curIdx : 0];
   const currentCarryover = computeCarryover(months, bills, curIdx >= 0 ? curIdx : 0);
   const currentFin = computeMonthFinancials(currentMonth, bills, currentCarryover);
@@ -23,9 +27,7 @@ export default function Dashboard({ bills, debts, months }) {
   const endOf2027 = dec2027Idx >= 0 ? allMonths[dec2027Idx].monthFinal : 0;
 
   // Average overage per month = end of Dec 2027 / remaining months (current month through Dec 2027)
-  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const now = new Date();
-  const currentKey = now.getFullYear() * 12 + now.getMonth();
+  const currentKey = curYear * 12 + now.getMonth();
   const dec2027Key = 2027 * 12 + 11;
   const remainingMonths = Math.max(1, dec2027Key - currentKey + 1);
   const avgPerMonth = endOf2027 / remainingMonths;
