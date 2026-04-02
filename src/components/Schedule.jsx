@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 
 // Anchor: March 26 2026 = start of a work hitch
 // Pattern: 14 days work, 7 days home (21-day cycle)
@@ -126,9 +126,34 @@ function getMonthDays(year, month) {
 }
 
 const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const SHORT_MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
-function Schedule() {
+// Compute all weekdays where kids are off/early, Brandon is working, Chelsea is working
+function computeSitterDays() {
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(2027, 6, 31);
+  const results = [];
+  let d = new Date(todayMid);
+  while (d <= end) {
+    const dow = d.getDay();
+    if (dow >= 1 && dow <= 5) {
+      const ev = getEvents(d);
+      if (ev && ev.kids && getStatus(d) === 'work' && !ev.chelsea) {
+        results.push({
+          key: `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`,
+          date: new Date(d),
+          type: ev.kids, // 'off' or 'early'
+        });
+      }
+    }
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  }
+  return results;
+}
+
+function Schedule({ sitterCoverage, setSitterCoverage }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -200,6 +225,29 @@ function Schedule() {
       </div>
     );
   }
+
+  const sitterDays = useMemo(() => computeSitterDays(), []);
+  const coveredCount = sitterDays.filter(d => sitterCoverage[d.key]).length;
+  const uncoveredCount = sitterDays.length - coveredCount;
+
+  const toggleCoverage = useCallback((dayKey) => {
+    setSitterCoverage(prev => ({ ...prev, [dayKey]: !prev[dayKey] }));
+  }, [setSitterCoverage]);
+
+  // Group sitter days by month
+  const sitterByMonth = useMemo(() => {
+    const groups = [];
+    let current = null;
+    for (const d of sitterDays) {
+      const label = `${MONTHS[d.date.getMonth()]} ${d.date.getFullYear()}`;
+      if (!current || current.label !== label) {
+        current = { label, days: [] };
+        groups.push(current);
+      }
+      current.days.push(d);
+    }
+    return groups;
+  }, [sitterDays]);
 
   return (
     <div>
@@ -288,6 +336,58 @@ function Schedule() {
             Chelsea Off
           </span>
         </div>
+      </div>
+
+      {/* Sitter Coverage Tracker */}
+      <div style={{ marginTop: 24 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Sitter Coverage Needed</h3>
+            <p className="subtitle" style={{ margin: '4px 0 0' }}>
+              Days both parents are working &amp; kids are off or half day
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 12, fontSize: 13 }}>
+            <span style={{ color: 'var(--danger)', fontWeight: 600 }}>{uncoveredCount} need coverage</span>
+            <span style={{ color: 'var(--success)', fontWeight: 600 }}>{coveredCount} handled</span>
+          </div>
+        </div>
+
+        {sitterByMonth.map(group => (
+          <div key={group.label} className="card" style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, color: 'var(--text-muted)' }}>
+              {group.label}
+              <span style={{ fontWeight: 400, marginLeft: 8, fontSize: 12 }}>
+                ({group.days.filter(d => !sitterCoverage[d.key]).length} uncovered)
+              </span>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {group.days.map(d => {
+                const covered = !!sitterCoverage[d.key];
+                return (
+                  <div
+                    key={d.key}
+                    onClick={() => toggleCoverage(d.key)}
+                    className={`sitter-row${covered ? ' covered' : ''}`}
+                  >
+                    <span className={`sitter-check${covered ? ' checked' : ''}`}>
+                      {covered ? '✓' : ''}
+                    </span>
+                    <span className="sitter-date">
+                      {DAYS[d.date.getDay()]} {SHORT_MONTHS[d.date.getMonth()]} {d.date.getDate()}
+                    </span>
+                    <span className={`sitter-type ${d.type}`}>
+                      {d.type === 'early' ? 'Half Day' : 'Full Day'}
+                    </span>
+                    <span className={`sitter-status ${covered ? 'ok' : 'need'}`}>
+                      {covered ? 'Covered' : 'Needs Sitter'}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

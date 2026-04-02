@@ -44,6 +44,7 @@ function App() {
     chelseaPay: chelseaPaycheck,
   });
   const [playgrounds, setPlaygrounds] = usePersistedState('budget_playgrounds', []);
+  const [sitterCoverage, setSitterCoverage] = usePersistedState('sitter_coverage', {});
 
 
   return (
@@ -101,7 +102,7 @@ function App() {
           <Route path="/debt" element={<Debt debts={debts} setDebts={setDebts} />} />
           <Route path="/salary" element={<SalaryCalc paycheckConfig={paycheckConfig} setPaycheckConfig={setPaycheckConfig} months={months} setMonths={setMonths} />} />
           <Route path="/chat" element={<Chat bills={bills} debts={debts} months={months} paycheckConfig={paycheckConfig} />} />
-          <Route path="/schedule" element={<Schedule />} />
+          <Route path="/schedule" element={<Schedule sitterCoverage={sitterCoverage} setSitterCoverage={setSitterCoverage} />} />
           <Route path="/playgrounds" element={
             <Playground
               playgrounds={playgrounds} setPlaygrounds={setPlaygrounds}
