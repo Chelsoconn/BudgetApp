@@ -34,16 +34,16 @@ export default function SalaryCalc({ paycheckConfig, setPaycheckConfig, months, 
 
   // Typical month scenarios
   const scenarios = [
-    { label: '4 weeks: S, B, S, S', brandon: [bSmall, bBig, bSmall, bSmall], chelsea: 2 },
-    { label: '4 weeks: S, S, B, S', brandon: [bSmall, bSmall, bBig, bSmall], chelsea: 2 },
-    { label: '4 weeks: S, S, S, B', brandon: [bSmall, bSmall, bSmall, bBig], chelsea: 2 },
-    { label: '5 weeks: B, S, S, B, S', brandon: [bBig, bSmall, bSmall, bBig, bSmall], chelsea: 2 },
-    { label: '5 weeks: S, S, B, S, S', brandon: [bSmall, bSmall, bBig, bSmall, bSmall], chelsea: 2 },
-    { label: '5 weeks (3 Chelsea)', brandon: [bBig, bSmall, bSmall, bBig, bSmall], chelsea: 3 },
+    { label: '4 Fri: S, B, S, S', brandon: [bSmall, bBig, bSmall, bSmall], chelsea: 2 },
+    { label: '4 Fri: S, S, B, S', brandon: [bSmall, bSmall, bBig, bSmall], chelsea: 2 },
+    { label: '4 Fri: B, S, S, B', brandon: [bBig, bSmall, bSmall, bBig], chelsea: 2 },
+    { label: '5 Fri: S, B, S, S, B', brandon: [bSmall, bBig, bSmall, bSmall, bBig], chelsea: 2 },
+    { label: '5 Fri: S, S, B, S, S', brandon: [bSmall, bSmall, bBig, bSmall, bSmall], chelsea: 2 },
+    { label: '5 Fri: B, S, S, B, S', brandon: [bBig, bSmall, bSmall, bBig, bSmall], chelsea: 2 },
   ];
 
   const annualBrandon = Math.round(52 / 3) * (bSmall + bSmall + bBig);
-  const annualChelsea = 26 * chelsea;
+  const annualChelsea = 24 * chelsea; // 2 checks/month × 12
   const annualCombined = annualBrandon + annualChelsea;
   const monthlyAvgBrandon = annualBrandon / 12;
   const monthlyAvgChelsea = annualChelsea / 12;
@@ -106,7 +106,7 @@ export default function SalaryCalc({ paycheckConfig, setPaycheckConfig, months, 
               style={{ width: '100%' }}
             />
           </div>
-          <div className="text-xs text-muted mt-2">Every 2 weeks</div>
+          <div className="text-xs text-muted mt-2">15th + last day of month</div>
         </div>
       </div>
 
@@ -146,9 +146,9 @@ export default function SalaryCalc({ paycheckConfig, setPaycheckConfig, months, 
             className="card-sm"
             style={{ minWidth: 120, borderColor: '#818cf8', textAlign: 'center', opacity: 0.7 }}
           >
-            <div className="text-xs text-muted mb-1">Chelsea (every 2 wks)</div>
+            <div className="text-xs text-muted mb-1">Chelsea (15th + last)</div>
             <div className="badge mb-2" style={{ background: 'rgba(129,140,248,0.15)', color: '#818cf8' }}>
-              biweekly
+              semi
             </div>
             <div className="font-bold text-lg">{fmt(chelsea)}</div>
           </div>
@@ -173,7 +173,7 @@ export default function SalaryCalc({ paycheckConfig, setPaycheckConfig, months, 
         <div className="stat-card">
           <div className="stat-label">Chelsea Monthly Avg</div>
           <div className="stat-value" style={{ color: '#818cf8' }}>{fmt(monthlyAvgChelsea)}</div>
-          <div className="stat-sub">~{fmt(annualChelsea)}/yr · 26 checks</div>
+          <div className="stat-sub">~{fmt(annualChelsea)}/yr · 24 checks</div>
         </div>
         <div className="stat-card">
           <div className="stat-label">Combined Monthly Avg</div>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // Bump this to force a data reset when the schema changes
-const DATA_VERSION = 3;
+const DATA_VERSION = 4;
 
 // On first load, check if data version has changed and clear stale data
 if (typeof window !== 'undefined') {
@@ -10,6 +10,7 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('budget_bills');
     localStorage.removeItem('budget_debts');
     localStorage.removeItem('budget_months');
+    localStorage.removeItem('budget_paycheck_config');
     localStorage.setItem('budget_data_version', String(DATA_VERSION));
   }
 }

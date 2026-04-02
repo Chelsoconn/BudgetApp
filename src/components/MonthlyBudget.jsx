@@ -111,7 +111,7 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
   };
 
   const typeLabel = (p) => {
-    if (p.person === 'Chelsea') return 'biweekly';
+    if (p.person === 'Chelsea') return 'semi-monthly';
     return p.type === 'big' ? 'big' : 'small';
   };
 
@@ -280,7 +280,7 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
           <div className="flex justify-between items-center mb-3">
             <div className="section-heading" style={{ margin: 0 }}>
               <span style={{ color: '#818cf8' }}>●</span> Chelsea
-              <span className="text-muted text-sm" style={{ fontWeight: 400, marginLeft: 8 }}>biweekly · {fmt(paycheckConfig.chelseaPay)}/check</span>
+              <span className="text-muted text-sm" style={{ fontWeight: 400, marginLeft: 8 }}>15th + last day · {fmt(paycheckConfig.chelseaPay)}/check</span>
             </div>
             <button className="btn-ghost btn-sm" onClick={() => quickAdd('Chelsea', 'regular')}>+Check</button>
           </div>

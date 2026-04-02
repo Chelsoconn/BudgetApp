@@ -43,462 +43,115 @@ export const initialDebts = {
   ],
 };
 
-// Brandon's weekly after-tax paycheck amounts.
+// Brandon's weekly after-tax paycheck amounts (paid every Friday).
 // Pattern repeats every 3 weeks: Small, Big, Small
 export const brandonSmall = 2296.75;
 export const brandonBig = 4103.11;
 
-// Chelsea's biweekly after-tax paycheck
-export const chelseaPaycheck = 3865;
+// Chelsea's semi-monthly after-tax paycheck (paid 15th and last day of month)
+export const chelseaPaycheck = 3885;
 
-export const initialMonths = [
-  // ========== 2026 ==========
-  {
-    id: 1,
-    name: 'January',
-    year: 2026,
-    spending: 2100,
-    other: 800,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2026-01-01', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-01-08', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-01-15', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-01-15', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-01-22', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-01-29', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-01-29', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: 'Taxes Pay for Botox/Amex charge $2000',
-  },
-  {
-    id: 2,
-    name: 'February',
-    year: 2026,
-    spending: 2150,
-    other: 1175,
-    labels: { other: 'HAIR+HAS+Childcare' },
-    paychecks: [
-      { date: '2026-02-05', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-02-12', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-02-12', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-02-19', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-02-26', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-02-26', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 3,
-    name: 'March',
-    year: 2026,
-    spending: 2150,
-    other: 800,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2026-03-05', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-03-12', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-03-12', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-03-19', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-03-26', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-03-26', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 4,
-    name: 'April',
-    year: 2026,
-    spending: 2150,
-    other: 800,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2026-04-02', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-04-09', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-04-09', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-04-16', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-04-23', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-04-30', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-04-30', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 5,
-    name: 'May',
-    year: 2026,
-    spending: 2150,
-    other: 975,
-    labels: { other: 'HAIR+HAS+childcare' },
-    paychecks: [
-      { date: '2026-05-07', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-05-14', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-05-14', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-05-21', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-05-28', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-05-28', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 6,
-    name: 'June',
-    year: 2026,
-    spending: 2150,
-    other: 3300,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2026-06-04', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-06-11', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-06-11', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-06-18', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-06-25', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-06-25', person: 'Chelsea', type: 'regular', amount: 3835 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 7,
-    name: 'July',
-    year: 2026,
-    spending: 2150,
-    other: 3300,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2026-07-02', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-07-09', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-07-09', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-07-16', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-07-23', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-07-30', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-07-30', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 8,
-    name: 'August',
-    year: 2026,
-    spending: 2150,
-    other: 1175,
-    labels: { other: 'HAS+HAIR+Childcare' },
-    paychecks: [
-      { date: '2026-08-06', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-08-13', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-08-13', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-08-20', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-08-27', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-08-27', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 9,
-    name: 'September',
-    year: 2026,
-    spending: 2150,
-    other: 500,
-    labels: { other: 'Childcare' },
-    paychecks: [
-      { date: '2026-09-03', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-09-10', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-09-10', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-09-17', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-09-24', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-09-24', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 10,
-    name: 'October',
-    year: 2026,
-    spending: 2150,
-    other: 500,
-    labels: { other: 'Childcare' },
-    paychecks: [
-      { date: '2026-10-01', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-10-08', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-10-15', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-10-15', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-10-22', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-10-29', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-10-29', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 11,
-    name: 'November',
-    year: 2026,
-    spending: 2150,
-    other: 1014,
-    labels: { other: 'HAIR+AMAZON CHARGE+childcare' },
-    paychecks: [
-      { date: '2026-11-05', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-11-12', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-11-12', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-11-19', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-11-26', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-11-26', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 12,
-    name: 'December',
-    year: 2026,
-    spending: 2150,
-    other: 500,
-    labels: { other: 'Childcare' },
-    paychecks: [
-      { date: '2026-12-03', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-12-10', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-12-10', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2026-12-17', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-12-24', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2026-12-31', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2026-12-31', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
+// ── Paycheck generator ─────────────────────────────────────────────
+// Brandon: every Friday, cycle S(0), B(1), S(2) starting from Fri Apr 4 2025 at pos 0
+// Chelsea: 15th and last day of each month, $3,885 each
 
-  // ========== 2027 ==========
-  {
-    id: 13,
-    name: 'January',
-    year: 2027,
-    spending: 2100,
-    other: 800,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2027-01-07', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-01-14', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-01-14', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-01-21', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-01-28', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-01-28', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 14,
-    name: 'February',
-    year: 2027,
-    spending: 2150,
-    other: 1175,
-    labels: { other: 'HAIR+HAS+Childcare' },
-    paychecks: [
-      { date: '2027-02-04', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-02-11', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-02-11', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-02-18', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-02-25', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-02-25', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 15,
-    name: 'March',
-    year: 2027,
-    spending: 2150,
-    other: 800,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2027-03-04', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-03-11', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-03-11', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-03-18', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-03-25', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-03-25', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 16,
-    name: 'April',
-    year: 2027,
-    spending: 2150,
-    other: 800,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2027-04-01', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-04-08', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-04-08', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-04-15', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-04-22', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-04-22', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-04-29', person: 'Brandon', type: 'small', amount: 2296.75 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 17,
-    name: 'May',
-    year: 2027,
-    spending: 2150,
-    other: 975,
-    labels: { other: 'HAIR+HAS+childcare' },
-    paychecks: [
-      { date: '2027-05-06', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-05-06', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-05-13', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-05-20', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-05-20', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-05-27', person: 'Brandon', type: 'big', amount: 4103.11 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 18,
-    name: 'June',
-    year: 2027,
-    spending: 2150,
-    other: 3300,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2027-06-03', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-06-03', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-06-10', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-06-17', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-06-17', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-06-24', person: 'Brandon', type: 'small', amount: 2296.75 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 19,
-    name: 'July',
-    year: 2027,
-    spending: 2150,
-    other: 3300,
-    labels: { other: 'HAS+Childcare' },
-    paychecks: [
-      { date: '2027-07-01', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-07-01', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-07-08', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-07-15', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-07-15', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-07-22', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-07-29', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-07-29', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 20,
-    name: 'August',
-    year: 2027,
-    spending: 2150,
-    other: 1175,
-    labels: { other: 'HAS+HAIR+Childcare' },
-    paychecks: [
-      { date: '2027-08-05', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-08-12', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-08-12', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-08-19', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-08-26', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-08-26', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '*CC + Boat payments end*',
-  },
-  {
-    id: 21,
-    name: 'September',
-    year: 2027,
-    spending: 2150,
-    other: 500,
-    labels: { other: 'Childcare' },
-    paychecks: [
-      { date: '2027-09-02', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-09-09', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-09-09', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-09-16', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-09-23', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-09-23', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-09-30', person: 'Brandon', type: 'big', amount: 4103.11 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 22,
-    name: 'October',
-    year: 2027,
-    spending: 2150,
-    other: 500,
-    labels: { other: 'Childcare' },
-    paychecks: [
-      { date: '2027-10-07', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-10-07', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-10-14', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-10-21', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-10-21', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-10-28', person: 'Brandon', type: 'small', amount: 2296.75 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 23,
-    name: 'November',
-    year: 2027,
-    spending: 2150,
-    other: 1014,
-    labels: { other: 'HAIR+AMAZON+childcare' },
-    paychecks: [
-      { date: '2027-11-04', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-11-04', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-11-11', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-11-18', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-11-18', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-11-25', person: 'Brandon', type: 'small', amount: 2296.75 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
-  {
-    id: 24,
-    name: 'December',
-    year: 2027,
-    spending: 2150,
-    other: 500,
-    labels: { other: 'Childcare' },
-    paychecks: [
-      { date: '2027-12-02', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-12-02', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-12-09', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-12-16', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-12-16', person: 'Chelsea', type: 'regular', amount: 3865 },
-      { date: '2027-12-23', person: 'Brandon', type: 'big', amount: 4103.11 },
-      { date: '2027-12-30', person: 'Brandon', type: 'small', amount: 2296.75 },
-      { date: '2027-12-30', person: 'Chelsea', type: 'regular', amount: 3865 },
-    ],
-    adjustments: [],
-    notes: '',
-  },
+function getFridays(year, monthIdx) {
+  const fridays = [];
+  const d = new Date(year, monthIdx, 1);
+  while (d.getDay() !== 5) d.setDate(d.getDate() + 1);
+  while (d.getMonth() === monthIdx) {
+    fridays.push(new Date(d));
+    d.setDate(d.getDate() + 7);
+  }
+  return fridays;
+}
+
+function lastDayOfMonth(year, monthIdx) {
+  return new Date(year, monthIdx + 1, 0).getDate();
+}
+
+function pad(n) { return n < 10 ? '0' + n : '' + n; }
+function toStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+// Reference: Friday April 4, 2025 = cycle position 0
+const cycleRef = new Date(2025, 3, 4); // Apr 4 2025 (Friday)
+
+function cyclePos(friday) {
+  const diffMs = friday.getTime() - cycleRef.getTime();
+  const weeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
+  return ((weeks % 3) + 3) % 3; // 0=S, 1=B, 2=S
+}
+
+function generatePaychecks(year, monthIdx) {
+  const paychecks = [];
+
+  // Brandon — every Friday
+  const fridays = getFridays(year, monthIdx);
+  for (const fri of fridays) {
+    const pos = cyclePos(fri);
+    const isBig = pos === 1;
+    paychecks.push({
+      date: toStr(fri),
+      amount: isBig ? brandonBig : brandonSmall,
+      person: 'Brandon',
+      type: isBig ? 'big' : 'small',
+    });
+  }
+
+  // Chelsea — 15th and last day of month
+  const the15th = `${year}-${pad(monthIdx + 1)}-15`;
+  const lastDay = `${year}-${pad(monthIdx + 1)}-${pad(lastDayOfMonth(year, monthIdx))}`;
+  paychecks.push({ date: the15th, amount: chelseaPaycheck, person: 'Chelsea', type: 'semi-monthly' });
+  paychecks.push({ date: lastDay, amount: chelseaPaycheck, person: 'Chelsea', type: 'semi-monthly' });
+
+  // Sort by date
+  paychecks.sort((a, b) => a.date.localeCompare(b.date));
+  return paychecks;
+}
+
+// ── Month configs ───────────────────────────────────────────────────
+const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const monthConfigs = [
+  // 2026
+  { mi: 0, yr: 2026, spending: 2100, other: 800, otherLabel: 'HAS+Childcare', notes: 'Taxes Pay for Botox/Amex charge $2000' },
+  { mi: 1, yr: 2026, spending: 2150, other: 1175, otherLabel: 'HAIR+HAS+Childcare' },
+  { mi: 2, yr: 2026, spending: 2150, other: 800, otherLabel: 'HAS+Childcare' },
+  { mi: 3, yr: 2026, spending: 2150, other: 800, otherLabel: 'HAS+Childcare' },
+  { mi: 4, yr: 2026, spending: 2150, other: 975, otherLabel: 'HAIR+HAS+childcare' },
+  { mi: 5, yr: 2026, spending: 2150, other: 3300, otherLabel: 'HAS+Childcare' },
+  { mi: 6, yr: 2026, spending: 2150, other: 3300, otherLabel: 'HAS+Childcare' },
+  { mi: 7, yr: 2026, spending: 2150, other: 1175, otherLabel: 'HAS+HAIR+Childcare' },
+  { mi: 8, yr: 2026, spending: 2150, other: 500, otherLabel: 'Childcare' },
+  { mi: 9, yr: 2026, spending: 2150, other: 500, otherLabel: 'Childcare' },
+  { mi: 10, yr: 2026, spending: 2150, other: 1014, otherLabel: 'HAIR+AMAZON CHARGE+childcare' },
+  { mi: 11, yr: 2026, spending: 2150, other: 500, otherLabel: 'Childcare' },
+  // 2027
+  { mi: 0, yr: 2027, spending: 2100, other: 800, otherLabel: 'HAS+Childcare' },
+  { mi: 1, yr: 2027, spending: 2150, other: 1175, otherLabel: 'HAIR+HAS+Childcare' },
+  { mi: 2, yr: 2027, spending: 2150, other: 800, otherLabel: 'HAS+Childcare' },
+  { mi: 3, yr: 2027, spending: 2150, other: 800, otherLabel: 'HAS+Childcare' },
+  { mi: 4, yr: 2027, spending: 2150, other: 975, otherLabel: 'HAIR+HAS+childcare' },
+  { mi: 5, yr: 2027, spending: 2150, other: 3300, otherLabel: 'HAS+Childcare' },
+  { mi: 6, yr: 2027, spending: 2150, other: 3300, otherLabel: 'HAS+Childcare' },
+  { mi: 7, yr: 2027, spending: 2150, other: 1175, otherLabel: 'HAS+HAIR+Childcare', notes: '*CC + Boat payments end*' },
+  { mi: 8, yr: 2027, spending: 2150, other: 500, otherLabel: 'Childcare' },
+  { mi: 9, yr: 2027, spending: 2150, other: 500, otherLabel: 'Childcare' },
+  { mi: 10, yr: 2027, spending: 2150, other: 1014, otherLabel: 'HAIR+AMAZON+childcare' },
+  { mi: 11, yr: 2027, spending: 2150, other: 500, otherLabel: 'Childcare' },
 ];
+
+export const initialMonths = monthConfigs.map((cfg, idx) => ({
+  id: idx + 1,
+  name: monthNames[cfg.mi],
+  year: cfg.yr,
+  spending: cfg.spending,
+  other: cfg.other,
+  labels: cfg.otherLabel ? { other: cfg.otherLabel } : {},
+  paychecks: generatePaychecks(cfg.yr, cfg.mi),
+  adjustments: cfg.adjustments ?? [],
+  notes: cfg.notes ?? '',
+}));
 
 export const billCategories = ['Housing', 'Debt', 'Insurance', 'Utilities', 'Health', 'Subscriptions', 'Vehicles', 'Transportation', 'Other'];
 
