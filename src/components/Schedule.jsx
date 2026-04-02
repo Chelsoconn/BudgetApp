@@ -37,9 +37,15 @@ addEarly(2025, 9, 22);  // Oct 22
 addEarly(2025, 11, 19); // Dec 19
 addEarly(2026, 1, 12);  // Feb 12
 addEarly(2026, 2, 13);  // Mar 13
-addEarly(2026, 3, 3);   // Apr 3
+addOff(2026, 3, 3);     // Apr 3 - Student/Staff Holiday
 addEarly(2026, 4, 15);  // May 15
 addEarly(2026, 4, 22);  // May 22 (last day)
+
+// Summer 2026 (May 23 – Aug 11)
+for (let d = 23; d <= 31; d++) addOff(2026, 4, d); // rest of May
+for (let d = 1; d <= 30; d++) addOff(2026, 5, d);  // June
+for (let d = 1; d <= 31; d++) addOff(2026, 6, d);  // July
+for (let d = 1; d <= 11; d++) addOff(2026, 7, d);  // Aug 1-11
 
 // ── 2026-2027 Lake Travis ISD ──
 // Days off
@@ -66,6 +72,11 @@ addOff(2027, 4, 31);  // Memorial Day
 
 // Early release days (2026-2027)
 addEarly(2027, 4, 27); // May 27 - Last day, early release district-wide
+
+// Summer 2027 (May 28 – Jul 31, no 2027-2028 start date yet)
+for (let d = 28; d <= 31; d++) addOff(2027, 4, d); // rest of May
+for (let d = 1; d <= 30; d++) addOff(2027, 5, d);  // June
+for (let d = 1; d <= 31; d++) addOff(2027, 6, d);  // July
 
 // ── Chelsea's days off (federal holidays) ──
 // 2025

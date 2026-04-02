@@ -18,18 +18,21 @@ function buildScheduleContext() {
     // 2025-2026
     'Sep 1 2025 (Labor Day)', 'Oct 10 2025', 'Oct 13 2025', 'Nov 24-28 2025 (Thanksgiving)',
     'Dec 22-31 2025 (Winter Break)', 'Jan 1-2 2026 (Winter Break)', 'Jan 5-7 2026 (Prof Dev)',
-    'Feb 13 2026', 'Feb 16 2026', 'Mar 16-20 2026 (Spring Break)', 'Mar 23 2026', 'May 25 2026 (Memorial Day)',
+    'Feb 13 2026', 'Feb 16 2026', 'Mar 16-20 2026 (Spring Break)', 'Mar 23 2026',
+    'Apr 3 2026 (Student Holiday)', 'May 25 2026 (Memorial Day)',
+    'May 23 - Aug 11 2026 (Summer Break)',
     // 2026-2027
     'Sep 7 2026 (Labor Day)', 'Sep 21 2026 (Yom Kippur)', 'Oct 9 2026 (Conferences)', 'Oct 12 2026 (Columbus Day)',
     'Oct 30 2026', 'Nov 2 2026 (Conferences)', 'Nov 23-27 2026 (Thanksgiving)',
     'Dec 18-31 2026 (Winter Break)', 'Jan 1 2027 (Winter Break)', 'Jan 4-5 2027', 'Jan 18 2027 (MLK Day)',
     'Feb 11-12 2027', 'Feb 15 2027 (Presidents Day)', 'Mar 15-19 2027 (Spring Break)',
     'Mar 26 2027 (Good Friday)', 'Apr 23 2027', 'Apr 26 2027', 'May 31 2027 (Memorial Day)',
+    'May 28 - Jul 31 2027 (Summer Break)',
   ];
 
   const kidsEarly = [
     'Aug 13 2025', 'Sep 22 2025', 'Oct 22 2025', 'Dec 19 2025', 'Feb 12 2026',
-    'Mar 13 2026', 'Apr 3 2026', 'May 15 2026', 'May 22 2026 (last day)',
+    'Mar 13 2026', 'May 15 2026', 'May 22 2026 (last day)',
     'May 27 2027 (last day)',
   ];
 
