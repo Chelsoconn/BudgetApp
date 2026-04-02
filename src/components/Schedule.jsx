@@ -213,15 +213,15 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
     const status = getStatus(date);
     const isToday = d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
     const ev = getEvents(date);
-    const kidsClass = ev?.kids ? ` school-${ev.kids}` : '';
-    const chelseaClass = ev?.chelsea ? ' chelsea-off' : '';
+    const symbols = [];
+    if (ev?.kids === 'off') symbols.push('🏠');
+    if (ev?.kids === 'early') symbols.push('⏰');
+    if (ev?.chelsea) symbols.push('⭐');
     cells.push(
-      <div key={d} className={`sched-cell ${status}${isToday ? ' today' : ''}${kidsClass}${chelseaClass}`}>
+      <div key={d} className={`sched-cell ${status}${isToday ? ' today' : ''}`}>
         <span className="sched-day">{d}</span>
         <span className="sched-label">{status === 'work' ? 'Work' : 'Home'}</span>
-        {ev?.kids === 'off' && <span className="school-badge off">Kids Off</span>}
-        {ev?.kids === 'early' && <span className="school-badge early">Early Out</span>}
-        {ev?.chelsea && <span className="school-badge chelsea">Chelsea Off</span>}
+        {symbols.length > 0 && <span className="sched-symbols">{symbols.join(' ')}</span>}
       </div>
     );
   }
@@ -314,27 +314,18 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
           {cells}
         </div>
 
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 16, fontSize: 13 }}>
+        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 16, fontSize: 13, flexWrap: 'wrap' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', display: 'inline-block' }} />
-            Work
+            Brandon at Work
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-block' }} />
-            Home
+            Brandon Home
           </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', display: 'inline-block' }} />
-            No School
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(168,85,247,0.20)', border: '1px solid rgba(168,85,247,0.4)', display: 'inline-block' }} />
-            Early Out
-          </span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(59,130,246,0.20)', border: '1px solid rgba(59,130,246,0.4)', display: 'inline-block' }} />
-            Chelsea Off
-          </span>
+          <span>🏠 Kids Off</span>
+          <span>⏰ Early Out</span>
+          <span>⭐ Chelsea Off</span>
         </div>
       </div>
 
