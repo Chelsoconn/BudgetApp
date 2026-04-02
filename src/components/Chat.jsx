@@ -97,12 +97,13 @@ Average overage/month: ${dec27 ? fmt(dec27.monthFinal / months.length) : 'N/A'}
 ${buildScheduleContext()}`;
 }
 
-export default function Chat({ bills, debts, months, paycheckConfig }) {
-  const [messages, setMessages] = useState([]);
+export default function Chat({ bills, debts, months, paycheckConfig, chatMessages, setChatMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const scrollRef = useRef(null);
+  const messages = chatMessages;
+  const setMessages = setChatMessages;
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
@@ -146,9 +147,20 @@ export default function Chat({ bills, debts, months, paycheckConfig }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: 700 }}>
-      <div className="page-header" style={{ marginBottom: 12, flexShrink: 0 }}>
-        <h2>Ask About Your Budget</h2>
-        <p className="text-sm text-muted">AI has full context of your bills, debts, income, projections, and family schedule</p>
+      <div className="page-header" style={{ marginBottom: 12, flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h2>Ask About Your Budget</h2>
+          <p className="text-sm text-muted">AI has full context of your bills, debts, income, projections, and family schedule</p>
+        </div>
+        {messages.length > 0 && (
+          <button
+            className="btn btn-ghost"
+            onClick={() => setMessages([])}
+            style={{ fontSize: 13, whiteSpace: 'nowrap' }}
+          >
+            + New Chat
+          </button>
+        )}
       </div>
 
       {/* Messages */}
