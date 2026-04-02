@@ -21,6 +21,32 @@ app.get('/api/data', async (req, res) => {
   }
 });
 
+// PUT /api/data/version — must be BEFORE :key route
+// Client detected a schema version change — clear stale default keys, keep user data
+app.put('/api/data/version', async (req, res) => {
+  try {
+    const { version } = req.body;
+    const { rows } = await pool.query("SELECT value FROM budget_data WHERE key = 'budget_data_version'");
+    const dbVersion = rows.length > 0 ? rows[0].value : null;
+
+    if (dbVersion !== version) {
+      // Clear stale default data — playgrounds are user-created so keep them
+      await pool.query(
+        "DELETE FROM budget_data WHERE key IN ('budget_bills', 'budget_debts', 'budget_months', 'budget_paycheck_config')"
+      );
+      await pool.query(
+        `INSERT INTO budget_data (key, value, updated_at) VALUES ('budget_data_version', $1, NOW())
+         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+        [JSON.stringify(version)]
+      );
+    }
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('PUT /api/data/version error:', err);
+    res.status(500).json({ error: 'db error' });
+  }
+});
+
 // GET /api/data/:key
 app.get('/api/data/:key', async (req, res) => {
   try {
