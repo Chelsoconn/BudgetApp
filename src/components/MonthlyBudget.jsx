@@ -184,8 +184,8 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
               <span className="text-muted">$</span>
               <input
                 type="number"
-                value={bankBalance}
-                onChange={(e) => updateMonth({ bankBalance: parseFloat(e.target.value) || 0 })}
+                value={month.bankBalance ?? ''}
+                onChange={(e) => updateMonth({ bankBalance: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
                 style={{ width: '100%' }}
                 placeholder="0"
               />
@@ -198,8 +198,8 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
               <span className="text-muted">$</span>
               <input
                 type="number"
-                value={amexBalance}
-                onChange={(e) => updateMonth({ amexBalance: parseFloat(e.target.value) || 0 })}
+                value={month.amexBalance ?? ''}
+                onChange={(e) => updateMonth({ amexBalance: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
                 style={{ width: '100%' }}
                 placeholder="0"
               />
@@ -623,8 +623,8 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
             <input
               type="number"
               className="editable-amount"
-              value={bankBalance}
-              onChange={(e) => updateMonth({ bankBalance: parseFloat(e.target.value) || 0 })}
+              value={month.bankBalance ?? ''}
+              onChange={(e) => updateMonth({ bankBalance: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
               style={{ width: 100 }}
             />
           </div>
@@ -637,8 +637,8 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
             <input
               type="number"
               className="editable-amount"
-              value={amexBalance}
-              onChange={(e) => updateMonth({ amexBalance: parseFloat(e.target.value) || 0 })}
+              value={month.amexBalance ?? ''}
+              onChange={(e) => updateMonth({ amexBalance: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
               style={{ width: 100 }}
             />
           </div>
