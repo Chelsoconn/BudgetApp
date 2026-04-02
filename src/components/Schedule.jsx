@@ -132,7 +132,8 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 // Compute all weekdays where kids are off/early, Brandon is working, Chelsea is working
 function computeSitterDays() {
   const today = new Date();
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  // Start from yesterday so the day isn't removed too early
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
   const end = new Date(2027, 6, 31);
   const results = [];
   let d = new Date(todayMid);
@@ -157,6 +158,24 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+
+  // Clean up sitter entries for days that have fully passed (2+ days ago)
+  useEffect(() => {
+    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    const staleKeys = Object.keys(sitterCoverage).filter(k => {
+      const parts = k.split('-').map(Number); // YYYY-M-D
+      if (parts.length !== 3) return false;
+      const d = new Date(parts[0], parts[1], parts[2]);
+      return d < cutoff;
+    });
+    if (staleKeys.length > 0) {
+      setSitterCoverage(prev => {
+        const next = { ...prev };
+        staleKeys.forEach(k => delete next[k]);
+        return next;
+      });
+    }
+  }, []);
 
   const { startDay, daysInMonth } = useMemo(() => getMonthDays(viewYear, viewMonth), [viewYear, viewMonth]);
 
