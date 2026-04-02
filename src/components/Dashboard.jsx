@@ -22,13 +22,15 @@ export default function Dashboard({ bills, debts, months }) {
   const dec2027Idx = allMonths.findIndex((m) => m.year === 2027 && m.name === 'December');
   const endOf2027 = dec2027Idx >= 0 ? allMonths[dec2027Idx].monthFinal : 0;
 
-  // Average overage per month = end of Dec 2027 / total months
-  const avgPerMonth = months.length > 0 ? endOf2027 / months.length : 0;
-
-  // Savings projection data — only current month and forward
+  // Average overage per month = end of Dec 2027 / remaining months (current month through Dec 2027)
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const now = new Date();
   const currentKey = now.getFullYear() * 12 + now.getMonth();
+  const dec2027Key = 2027 * 12 + 11;
+  const remainingMonths = Math.max(1, dec2027Key - currentKey + 1);
+  const avgPerMonth = endOf2027 / remainingMonths;
+
+  // Savings projection data — only current month and forward
   const savingsData = allMonths
     .filter((m) => {
       const mi = monthNames.indexOf(m.name);
@@ -77,7 +79,7 @@ export default function Dashboard({ bills, debts, months }) {
           <div className={`stat-value ${avgPerMonth >= 0 ? 'text-green' : 'text-red'}`}>
             {fmt(avgPerMonth)}
           </div>
-          <div className="stat-sub">{fmt(endOf2027)} ÷ {months.length} months</div>
+          <div className="stat-sub">{fmt(endOf2027)} ÷ {remainingMonths} months to Dec '27</div>
         </div>
       </div>
 
