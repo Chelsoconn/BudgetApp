@@ -54,7 +54,7 @@ function App() {
         <div className="sidebar-logo">
           <div className="logo-mark">B&C</div>
           <div>
-            <h1>O'Conn Fam</h1>
+            <h1>Tracker</h1>
             <p>Make that Monaay</p>
           </div>
         </div>
