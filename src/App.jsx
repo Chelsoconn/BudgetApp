@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import './App.css';
 import { initialBills, initialDebts, initialMonths, brandonSmall, brandonBig, chelseaPaycheck } from './data/budgetData';
 import { usePersistedState } from './hooks/usePersistedState';
+import { seedDbFromLocalStorage } from './utils/seedDb';
 import Dashboard from './components/Dashboard';
 import Bills from './components/Bills';
 import MonthlyBudget from './components/MonthlyBudget';
@@ -37,6 +39,9 @@ function App() {
     chelseaPay: chelseaPaycheck,
   });
   const [playgrounds, setPlaygrounds] = usePersistedState('budget_playgrounds', []);
+
+  // One-time seed: push localStorage data into Postgres on first session
+  useEffect(() => { seedDbFromLocalStorage(); }, []);
 
   return (
     <div className="app">
