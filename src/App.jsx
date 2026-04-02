@@ -31,7 +31,6 @@ const NAV = [
   { path: '/debt', label: 'Debt', icon: icons.debt },
   { path: '/salary', label: 'Salary', icon: icons.salary },
   { path: '/chat', label: 'Ask AI', icon: icons.chat },
-  { path: '/schedule', label: 'Schedule', icon: icons.schedule },
 ];
 
 function App() {
@@ -90,6 +89,18 @@ function App() {
                 {playgrounds.length}
               </span>
             )}
+          </NavLink>
+        </div>
+        <div className="nav-section" style={{ borderTop: '1px solid var(--border)', marginTop: 4, paddingTop: 12 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', padding: '0 12px', marginBottom: 4 }}>
+            Scheduling
+          </div>
+          <NavLink
+            to="/schedule"
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
+          >
+            <span className="nav-icon">{icons.schedule}</span>
+            <span>Family Schedule</span>
           </NavLink>
         </div>
       </nav>
