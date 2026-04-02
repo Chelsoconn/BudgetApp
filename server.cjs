@@ -90,25 +90,35 @@ app.post('/api/chat', async (req, res) => {
 
   const { messages, budgetContext } = req.body;
 
-  const systemPrompt = `You are a helpful financial advisor assistant for a household budget app. You have full context of the user's budget data below. Answer questions, give advice, run scenarios, and help them understand their finances. Be concise and practical. Use dollar amounts when relevant.
+  const today = new Date();
+  const dateStr = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
-BUDGET DATA:
+  const systemPrompt = `You are a smart, helpful financial advisor and family assistant for the O'Connor household budget app. Today is ${dateStr}. You have full context of their budget, debts, income, and family schedule below.
+
+Your job:
+- Answer questions about their finances, schedule, and family logistics
+- Give practical, specific advice with dollar amounts
+- Run what-if scenarios when asked
+- Know who's home/working on any given date using Brandon's rotation and Chelsea's holidays
+- Know when the kids (Maka & Jack) have school off, early release, or summer break
+- Be concise but thorough. Reference specific numbers from the data.
+
+BUDGET & SCHEDULE DATA:
 ${budgetContext}`;
 
   try {
-    // Validate that messages are well-formed
     const cleanMessages = (messages || []).map(m => ({
       role: String(m.role || 'user'),
       content: String(m.content || ''),
     }));
 
     const payload = JSON.stringify({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       messages: [
         { role: 'system', content: systemPrompt },
-        ...messages,
+        ...cleanMessages,
       ],
-      max_tokens: 1000,
+      max_tokens: 2000,
     });
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
