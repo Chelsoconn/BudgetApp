@@ -1,236 +1,245 @@
-import { useState } from 'react';
 import { fmt } from '../utils/format';
 
-export default function SalaryCalc() {
-  const [hourlyWage, setHourlyWage] = useState(37);
-  const [overtimeHours, setOvertimeHours] = useState(10);
-  const [regularHours, setRegularHours] = useState(40);
-  const [nonTax, setNonTax] = useState(120);
-  const [chelseaMonthly, setChelseaMonthly] = useState(7730);
-  const [taxRate, setTaxRate] = useState(22);
+// Brandon's cycle: Small, Big, Small (repeating weekly)
+const CYCLE = ['small', 'big', 'small'];
 
-  const overtimeRate = hourlyWage * 1.5;
-  const weeklyGross = regularHours * hourlyWage + overtimeHours * overtimeRate + nonTax;
-  const weeklyNet = weeklyGross * (1 - taxRate / 100);
-  const monthlyGross = weeklyGross * (52 / 12);
-  const monthlyNet = weeklyNet * (52 / 12);
-  const yearlyGross = weeklyGross * 52;
-  const yearlyNet = weeklyNet * 52;
+export default function SalaryCalc({ paycheckConfig, setPaycheckConfig, months, setMonths }) {
+  const bSmall = paycheckConfig.brandonSmall;
+  const bBig = paycheckConfig.brandonBig;
+  const chelsea = paycheckConfig.chelseaPay;
 
-  const combinedMonthly = monthlyNet + chelseaMonthly;
+  // Update a paycheck config value and propagate to all matching paychecks in months
+  const updateAmount = (key, val) => {
+    const n = parseFloat(val) || 0;
+    const prev = paycheckConfig[key];
+    setPaycheckConfig({ ...paycheckConfig, [key]: n });
 
-  // paycheck schedule (biweekly)
-  const largePaycheck = weeklyNet * 2;
-  const smallPaycheck = weeklyNet;
+    // Update matching paychecks in all months
+    setMonths(months.map((m) => ({
+      ...m,
+      paychecks: m.paychecks.map((p) => {
+        if (key === 'brandonSmall' && p.person === 'Brandon' && p.type === 'small' && p.amount === prev) {
+          return { ...p, amount: n };
+        }
+        if (key === 'brandonBig' && p.person === 'Brandon' && p.type === 'big' && p.amount === prev) {
+          return { ...p, amount: n };
+        }
+        if (key === 'chelseaPay' && p.person === 'Chelsea' && p.amount === prev) {
+          return { ...p, amount: n };
+        }
+        return p;
+      }),
+    })));
+  };
+
+  // Typical month scenarios
+  const scenarios = [
+    { label: '4 weeks: S, B, S, S', brandon: [bSmall, bBig, bSmall, bSmall], chelsea: 2 },
+    { label: '4 weeks: S, S, B, S', brandon: [bSmall, bSmall, bBig, bSmall], chelsea: 2 },
+    { label: '4 weeks: S, S, S, B', brandon: [bSmall, bSmall, bSmall, bBig], chelsea: 2 },
+    { label: '5 weeks: B, S, S, B, S', brandon: [bBig, bSmall, bSmall, bBig, bSmall], chelsea: 2 },
+    { label: '5 weeks: S, S, B, S, S', brandon: [bSmall, bSmall, bBig, bSmall, bSmall], chelsea: 2 },
+    { label: '5 weeks (3 Chelsea)', brandon: [bBig, bSmall, bSmall, bBig, bSmall], chelsea: 3 },
+  ];
+
+  const annualBrandon = Math.round(52 / 3) * (bSmall + bSmall + bBig);
+  const annualChelsea = 26 * chelsea;
+  const annualCombined = annualBrandon + annualChelsea;
+  const monthlyAvgBrandon = annualBrandon / 12;
+  const monthlyAvgChelsea = annualChelsea / 12;
+  const monthlyAvgCombined = annualCombined / 12;
 
   return (
     <div>
       <div className="page-header">
-        <h2>Salary Calculator</h2>
-        <p>Brandon's pay breakdown — adjust inputs to see real-time projections</p>
+        <h2>Paycheck Overview</h2>
+        <p>After-tax take-home amounts — changes here update all months automatically</p>
       </div>
 
-      <div className="grid-2 mb-4">
-        {/* Inputs */}
+      {/* Paycheck inputs */}
+      <div className="grid-3 mb-4">
         <div className="card">
-          <div className="section-heading">⚙️ Pay Settings</div>
-
-          <div className="form-field mb-3">
-            <label className="form-label">Hourly Wage</label>
-            <div className="flex items-center gap-2">
-              <span className="text-muted">$</span>
-              <input
-                type="number"
-                value={hourlyWage}
-                onChange={(e) => setHourlyWage(parseFloat(e.target.value) || 0)}
-                style={{ width: 100 }}
-              />
-              <span className="text-muted text-sm">/ hour</span>
-            </div>
+          <div className="section-heading">
+            <span style={{ color: 'var(--green)' }}>●</span> Brandon — Small Check
           </div>
-
-          <div className="form-field mb-3">
-            <label className="form-label">Regular Hours / Week</label>
+          <div className="stat-label mb-2">After-tax amount</div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted">$</span>
             <input
               type="number"
-              value={regularHours}
-              onChange={(e) => setRegularHours(parseFloat(e.target.value) || 0)}
-              style={{ width: 100 }}
+              value={bSmall}
+              onChange={(e) => updateAmount('brandonSmall', e.target.value)}
+              style={{ width: '100%' }}
             />
           </div>
-
-          <div className="form-field mb-3">
-            <label className="form-label">Overtime Hours / Week</label>
-            <input
-              type="number"
-              value={overtimeHours}
-              onChange={(e) => setOvertimeHours(parseFloat(e.target.value) || 0)}
-              style={{ width: 100 }}
-            />
-            <div className="text-xs text-muted mt-1">Rate: {fmt(overtimeRate)}/hr (1.5×)</div>
-          </div>
-
-          <div className="form-field mb-3">
-            <label className="form-label">Non-Taxable / Week</label>
-            <div className="flex items-center gap-2">
-              <span className="text-muted">$</span>
-              <input
-                type="number"
-                value={nonTax}
-                onChange={(e) => setNonTax(parseFloat(e.target.value) || 0)}
-                style={{ width: 100 }}
-              />
-            </div>
-          </div>
-
-          <div className="form-field mb-3">
-            <label className="form-label">Est. Tax Rate</label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                value={taxRate}
-                onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
-                style={{ width: 80 }}
-              />
-              <span className="text-muted">%</span>
-            </div>
-          </div>
-
-          <div className="form-field">
-            <label className="form-label">Chelsea Monthly (take-home)</label>
-            <div className="flex items-center gap-2">
-              <span className="text-muted">$</span>
-              <input
-                type="number"
-                value={chelseaMonthly}
-                onChange={(e) => setChelseaMonthly(parseFloat(e.target.value) || 0)}
-                style={{ width: 120 }}
-              />
-            </div>
-          </div>
+          <div className="text-xs text-muted mt-2">Occurs twice per 3-week cycle</div>
         </div>
 
-        {/* Results */}
-        <div className="flex flex-col gap-3">
-          <div className="stat-card">
-            <div className="stat-label">Weekly Gross</div>
-            <div className="stat-value">{fmt(weeklyGross)}</div>
-            <div className="stat-sub">before taxes</div>
+        <div className="card">
+          <div className="section-heading">
+            <span style={{ color: 'var(--green)' }}>●</span> Brandon — Big Check
           </div>
-          <div className="stat-card">
-            <div className="stat-label">Weekly Take-Home</div>
-            <div className="stat-value text-green">{fmt(weeklyNet)}</div>
-            <div className="stat-sub">after ~{taxRate}% taxes</div>
+          <div className="stat-label mb-2">After-tax amount</div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted">$</span>
+            <input
+              type="number"
+              value={bBig}
+              onChange={(e) => updateAmount('brandonBig', e.target.value)}
+              style={{ width: '100%' }}
+            />
           </div>
-          <div className="stat-card">
-            <div className="stat-label">Monthly Take-Home</div>
-            <div className="stat-value text-green">{fmt(monthlyNet)}</div>
-            <div className="stat-sub">Brandon alone</div>
+          <div className="text-xs text-muted mt-2">Every 3rd week</div>
+        </div>
+
+        <div className="card">
+          <div className="section-heading">
+            <span style={{ color: '#818cf8' }}>●</span> Chelsea — Biweekly
           </div>
-          <div className="stat-card">
-            <div className="stat-label">Combined Monthly</div>
-            <div className="stat-value text-accent">{fmt(combinedMonthly)}</div>
-            <div className="stat-sub">Brandon + Chelsea</div>
+          <div className="stat-label mb-2">After-tax amount</div>
+          <div className="flex items-center gap-2">
+            <span className="text-muted">$</span>
+            <input
+              type="number"
+              value={chelsea}
+              onChange={(e) => updateAmount('chelseaPay', e.target.value)}
+              style={{ width: '100%' }}
+            />
           </div>
+          <div className="text-xs text-muted mt-2">Every 2 weeks</div>
         </div>
       </div>
 
-      {/* Breakdown table */}
+      <div className="note-box mb-4">
+        <span>📌</span>
+        <span>Changing an amount above updates every matching paycheck across all months in your Monthly Budget.</span>
+      </div>
+
+      {/* Paycheck pattern visualization */}
       <div className="card mb-4">
-        <div className="section-heading">📊 Pay Breakdown</div>
+        <div className="section-heading">📅 Brandon's 3-Week Pay Cycle</div>
+        <div className="flex gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
+          {CYCLE.map((type, i) => (
+            <div
+              key={i}
+              className="card-sm flex-1"
+              style={{
+                minWidth: 120,
+                borderColor: type === 'big' ? 'var(--green)' : 'var(--border)',
+                textAlign: 'center',
+              }}
+            >
+              <div className="text-xs text-muted mb-1">Week {i + 1}</div>
+              <div
+                className="badge mb-2"
+                style={{
+                  background: type === 'big' ? 'rgba(16,185,129,0.15)' : 'rgba(136,146,164,0.15)',
+                  color: type === 'big' ? 'var(--green)' : 'var(--text-muted)',
+                }}
+              >
+                {type === 'big' ? 'BIG' : 'small'}
+              </div>
+              <div className="font-bold text-lg">{fmt(type === 'big' ? bBig : bSmall)}</div>
+            </div>
+          ))}
+          <div
+            className="card-sm"
+            style={{ minWidth: 120, borderColor: '#818cf8', textAlign: 'center', opacity: 0.7 }}
+          >
+            <div className="text-xs text-muted mb-1">Chelsea (every 2 wks)</div>
+            <div className="badge mb-2" style={{ background: 'rgba(129,140,248,0.15)', color: '#818cf8' }}>
+              biweekly
+            </div>
+            <div className="font-bold text-lg">{fmt(chelsea)}</div>
+          </div>
+        </div>
+
+        <div className="divider" />
+
+        <div className="text-sm text-muted">
+          3-week Brandon total: <strong style={{ color: 'var(--text)' }}>{fmt(bSmall + bSmall + bBig)}</strong>
+          &nbsp;·&nbsp;
+          4-week Chelsea total: <strong style={{ color: 'var(--text)' }}>{fmt(chelsea * 2)}</strong>
+        </div>
+      </div>
+
+      {/* Annual averages */}
+      <div className="grid-4 mb-4">
+        <div className="stat-card">
+          <div className="stat-label">Brandon Monthly Avg</div>
+          <div className="stat-value text-green">{fmt(monthlyAvgBrandon)}</div>
+          <div className="stat-sub">~{fmt(annualBrandon)}/yr</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Chelsea Monthly Avg</div>
+          <div className="stat-value" style={{ color: '#818cf8' }}>{fmt(monthlyAvgChelsea)}</div>
+          <div className="stat-sub">~{fmt(annualChelsea)}/yr · 26 checks</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Combined Monthly Avg</div>
+          <div className="stat-value text-accent">{fmt(monthlyAvgCombined)}</div>
+          <div className="stat-sub">approximate</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-label">Combined Annual</div>
+          <div className="stat-value text-accent">{fmt(annualCombined)}</div>
+          <div className="stat-sub">after taxes</div>
+        </div>
+      </div>
+
+      {/* Month scenarios */}
+      <div className="card mb-4">
+        <div className="section-heading">📊 Monthly Income Scenarios</div>
+        <div className="text-sm text-muted mb-3">
+          Actual monthly income varies based on where in Brandon's 3-week cycle the month lands and how many Chelsea checks fall that month.
+        </div>
         <table>
           <thead>
             <tr>
-              <th>Component</th>
-              <th className="text-right">Per Week</th>
-              <th className="text-right">Per Month</th>
-              <th className="text-right">Per Year</th>
+              <th>Scenario</th>
+              <th className="text-right">Brandon</th>
+              <th className="text-right">Chelsea</th>
+              <th className="text-right">Combined</th>
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>Regular ({regularHours} hrs × {fmt(hourlyWage)})</td>
-              <td className="text-right">{fmt(regularHours * hourlyWage)}</td>
-              <td className="text-right">{fmt(regularHours * hourlyWage * 52 / 12)}</td>
-              <td className="text-right">{fmt(regularHours * hourlyWage * 52)}</td>
-            </tr>
-            <tr>
-              <td>Overtime ({overtimeHours} hrs × {fmt(overtimeRate)})</td>
-              <td className="text-right">{fmt(overtimeHours * overtimeRate)}</td>
-              <td className="text-right">{fmt(overtimeHours * overtimeRate * 52 / 12)}</td>
-              <td className="text-right">{fmt(overtimeHours * overtimeRate * 52)}</td>
-            </tr>
-            <tr>
-              <td>Non-Taxable</td>
-              <td className="text-right">{fmt(nonTax)}</td>
-              <td className="text-right">{fmt(nonTax * 52 / 12)}</td>
-              <td className="text-right">{fmt(nonTax * 52)}</td>
-            </tr>
-            <tr style={{ borderTop: '2px solid var(--border)' }}>
-              <td><strong>Gross Total</strong></td>
-              <td className="text-right font-bold">{fmt(weeklyGross)}</td>
-              <td className="text-right font-bold">{fmt(monthlyGross)}</td>
-              <td className="text-right font-bold">{fmt(yearlyGross)}</td>
-            </tr>
-            <tr>
-              <td className="text-muted">Taxes (~{taxRate}%)</td>
-              <td className="text-right text-red">−{fmt(weeklyGross * taxRate / 100)}</td>
-              <td className="text-right text-red">−{fmt(monthlyGross * taxRate / 100)}</td>
-              <td className="text-right text-red">−{fmt(yearlyGross * taxRate / 100)}</td>
-            </tr>
-            <tr style={{ borderTop: '2px solid var(--border)' }}>
-              <td><strong>Take-Home</strong></td>
-              <td className="text-right font-bold text-green">{fmt(weeklyNet)}</td>
-              <td className="text-right font-bold text-green">{fmt(monthlyNet)}</td>
-              <td className="text-right font-bold text-green">{fmt(yearlyNet)}</td>
-            </tr>
+            {scenarios.map((s, i) => {
+              const bTotal = s.brandon.reduce((sum, x) => sum + x, 0);
+              const cTotal = s.chelsea * chelsea;
+              return (
+                <tr key={i}>
+                  <td className="text-sm">{s.label}</td>
+                  <td className="text-right font-semibold text-green">{fmt(bTotal)}</td>
+                  <td className="text-right font-semibold" style={{ color: '#818cf8' }}>{fmt(cTotal)}</td>
+                  <td className="text-right font-bold">{fmt(bTotal + cTotal)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
 
-      {/* Paycheck schedule */}
-      <div className="card mb-4">
-        <div className="section-heading">🗓️ Typical Paycheck Sizes</div>
-        <div className="grid-2">
-          <div className="card-sm">
-            <div className="section-label">Regular Week (1× weekly)</div>
-            <div className="stat-value text-green">{fmt(weeklyNet)}</div>
-            <div className="stat-sub mt-1">{regularHours} reg + {overtimeHours} OT hrs</div>
-          </div>
-          <div className="card-sm">
-            <div className="section-label">Large Check (2 weeks combined)</div>
-            <div className="stat-value text-green">{fmt(largePaycheck)}</div>
-            <div className="stat-sub mt-1">bi-weekly total</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Long-term notes from spreadsheet */}
+      {/* Long-term projections */}
       <div className="card">
         <div className="section-heading">🔮 Long-Term Projections</div>
         <div className="grid-2">
-          <div>
+          <div className="card-sm">
             <div className="section-label">Phase 1 (Ages 39–44)</div>
-            <div className="card-sm mb-3">
-              <div className="text-sm text-muted mb-1">Saving ~$4k/month</div>
-              <div className="font-bold">~$285,000 by age 44</div>
-              <div className="text-xs text-muted mt-1">Compounding alone to 65 → ~$1.1M</div>
-            </div>
+            <div className="font-bold mb-1">~$285,000 by age 44</div>
+            <div className="text-sm text-muted">Saving ~$4k/month</div>
+            <div className="text-xs text-muted mt-1">Compounding alone to 65 → ~$1.1M</div>
           </div>
-          <div>
+          <div className="card-sm">
             <div className="section-label">Phase 2 (Ages 44–65)</div>
-            <div className="card-sm mb-3">
-              <div className="text-sm text-muted mb-1">~$5,750/month for 21 years</div>
-              <div className="font-bold">Adds ~$2.9M</div>
-              <div className="text-xs text-muted mt-1">Total at 65: ~$4.0M</div>
-            </div>
+            <div className="font-bold mb-1">Adds ~$2.9M</div>
+            <div className="text-sm text-muted">~$5,750/month for 21 years</div>
+            <div className="text-xs text-muted mt-1">Total at 65: ~$4.0M</div>
           </div>
         </div>
-        <div className="note-box mt-2">
+        <div className="note-box mt-3">
           <span>📌</span>
           <span>
-            Chelsea: $7,730/month. December '26 savings target: {fmt(6475)}.
-            December '27 savings target: {fmt(58558)}.
+            December '26 savings target: {fmt(6475)} · December '27 savings target: {fmt(58558)}
           </span>
         </div>
       </div>
