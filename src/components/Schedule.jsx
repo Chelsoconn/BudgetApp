@@ -238,13 +238,17 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
   const coveredCount = sitterDays.filter(d => getEntry(d.key).covered).length;
   const uncoveredCount = sitterDays.length - coveredCount;
 
-  const toggleCoverage = useCallback((dayKey) => {
+  const toggleCoverage = useCallback((dayKey, dateLabel) => {
+    const entry = sitterCoverage[dayKey];
+    const old = !entry ? { covered: false, note: '' } : typeof entry === 'boolean' ? { covered: entry, note: '' } : entry;
+    const action = old.covered ? 'remove coverage for' : 'mark as covered for';
+    if (!window.confirm(`Are you sure you want to ${action} ${dateLabel}?`)) return;
     setSitterCoverage(prev => {
-      const entry = prev[dayKey];
-      const old = !entry ? { covered: false, note: '' } : typeof entry === 'boolean' ? { covered: entry, note: '' } : entry;
-      return { ...prev, [dayKey]: { ...old, covered: !old.covered } };
+      const e = prev[dayKey];
+      const o = !e ? { covered: false, note: '' } : typeof e === 'boolean' ? { covered: e, note: '' } : e;
+      return { ...prev, [dayKey]: { ...o, covered: !o.covered } };
     });
-  }, [setSitterCoverage]);
+  }, [setSitterCoverage, sitterCoverage]);
 
   const updateNote = useCallback((dayKey, note) => {
     setSitterCoverage(prev => {
@@ -379,7 +383,7 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
                   <div key={d.key} className={`sitter-item${entry.covered ? ' covered' : ''}`}>
                     <div
                       className="sitter-row"
-                      onClick={() => toggleCoverage(d.key)}
+                      onClick={() => toggleCoverage(d.key, `${DAYS[d.date.getDay()]} ${SHORT_MONTHS[d.date.getMonth()]} ${d.date.getDate()}`)}
                     >
                       <span className={`sitter-check${entry.covered ? ' checked' : ''}`}>
                         {entry.covered ? '✓' : ''}
