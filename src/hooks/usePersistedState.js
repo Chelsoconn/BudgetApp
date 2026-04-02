@@ -1,24 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 
-// Bump this when DEFAULT data shape changes.
-// On mismatch: localStorage clears, DB stale keys cleared, fresh defaults saved to both.
 const DATA_VERSION = 9;
 const DEBOUNCE_MS = 800;
 
-// One-time version check per page load
-let versionIsStale = false;
-
+// Version check — runs once on page load
 if (typeof window !== 'undefined') {
   const stored = localStorage.getItem('budget_data_version');
   if (stored !== String(DATA_VERSION)) {
-    versionIsStale = true;
     localStorage.removeItem('budget_bills');
     localStorage.removeItem('budget_debts');
     localStorage.removeItem('budget_months');
     localStorage.removeItem('budget_paycheck_config');
     localStorage.removeItem('budget_playgrounds');
     localStorage.setItem('budget_data_version', String(DATA_VERSION));
-    // Tell server to clear stale default keys
+    // Clear stale DB keys
     fetch('/api/data/version', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -39,42 +34,37 @@ export function usePersistedState(key, defaultValue) {
 
   const debounceRef = useRef(null);
   const ready = useRef(false);
+  const hasLoaded = useRef(false);
 
-  // On mount: either load from DB or seed defaults
+  // On mount: load from DB or seed if empty
   useEffect(() => {
-    if (versionIsStale) {
-      // Version changed — don't load stale DB data, push fresh defaults instead
-      ready.current = true;
-      localStorage.setItem(key, JSON.stringify(defaultValue));
-      fetch(`/api/data/${key}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(defaultValue),
-      }).catch(() => {});
-      return;
-    }
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
 
-    // Normal load — fetch from DB
-    let cancelled = false;
     fetch(`/api/data/${key}`)
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (res.ok) return res.json();
+        return null;
+      })
       .then((serverData) => {
-        if (!cancelled && serverData !== null) {
+        if (serverData !== null) {
+          // DB has data — use it
           setState(serverData);
           try { localStorage.setItem(key, JSON.stringify(serverData)); } catch {}
-        } else if (!cancelled) {
-          // DB has no data for this key — push current state (defaults or localStorage)
+        } else {
+          // DB empty — push current state (defaults) to DB
+          const current = localStorage.getItem(key);
+          const toSave = current !== null ? current : JSON.stringify(defaultValue);
           fetch(`/api/data/${key}`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(state),
+            body: toSave,
           }).catch(() => {});
         }
       })
       .catch(() => {})
       .finally(() => { ready.current = true; });
-    return () => { cancelled = true; };
-  }, [key]);
+  }, []);
 
   // On change: localStorage + debounced DB save
   useEffect(() => {
