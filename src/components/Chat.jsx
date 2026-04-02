@@ -2,6 +2,50 @@ import { useState, useRef, useEffect } from 'react';
 import { fmt } from '../utils/format';
 import { computeAllMonths } from '../utils/computeMonth';
 
+function buildScheduleContext() {
+  // Brandon's rotation
+  const ANCHOR = new Date(2026, 2, 26);
+  const CYCLE = 21, WORK = 14;
+  const today = new Date();
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  let diff = Math.floor((todayMid - ANCHOR) / 86400000);
+  diff = ((diff % CYCLE) + CYCLE) % CYCLE;
+  const brandonStatus = diff < WORK ? 'At Work' : 'Home';
+  const daysLeft = diff < WORK ? WORK - diff : CYCLE - diff;
+
+  // Kids school days off (Lake Travis ISD)
+  const kidsOff = [
+    // 2025-2026
+    'Sep 1 2025 (Labor Day)', 'Oct 10 2025', 'Oct 13 2025', 'Nov 24-28 2025 (Thanksgiving)',
+    'Dec 22-31 2025 (Winter Break)', 'Jan 1-2 2026 (Winter Break)', 'Jan 5-7 2026 (Prof Dev)',
+    'Feb 13 2026', 'Feb 16 2026', 'Mar 16-20 2026 (Spring Break)', 'Mar 23 2026', 'May 25 2026 (Memorial Day)',
+    // 2026-2027
+    'Sep 7 2026 (Labor Day)', 'Sep 21 2026 (Yom Kippur)', 'Oct 9 2026 (Conferences)', 'Oct 12 2026 (Columbus Day)',
+    'Oct 30 2026', 'Nov 2 2026 (Conferences)', 'Nov 23-27 2026 (Thanksgiving)',
+    'Dec 18-31 2026 (Winter Break)', 'Jan 1 2027 (Winter Break)', 'Jan 4-5 2027', 'Jan 18 2027 (MLK Day)',
+    'Feb 11-12 2027', 'Feb 15 2027 (Presidents Day)', 'Mar 15-19 2027 (Spring Break)',
+    'Mar 26 2027 (Good Friday)', 'Apr 23 2027', 'Apr 26 2027', 'May 31 2027 (Memorial Day)',
+  ];
+
+  const kidsEarly = [
+    'Aug 13 2025', 'Sep 22 2025', 'Oct 22 2025', 'Dec 19 2025', 'Feb 12 2026',
+    'Mar 13 2026', 'Apr 3 2026', 'May 15 2026', 'May 22 2026 (last day)',
+    'May 27 2027 (last day)',
+  ];
+
+  const chelseaOff = [
+    "New Year's Day", 'MLK Day', 'Memorial Day', 'Independence Day',
+    'Labor Day', 'Thanksgiving', 'Christmas',
+  ];
+
+  return `FAMILY SCHEDULE:
+Brandon (dad): 14 days work / 7 days home rotation. Currently: ${brandonStatus} (${daysLeft} days left in stretch). Anchor: Mar 26 2026.
+Chelsea (mom): Off on federal holidays each year: ${chelseaOff.join(', ')}.
+Maka & Jack (kids, Lake Travis ISD):
+  Days off: ${kidsOff.join('; ')}
+  Early release days: ${kidsEarly.join('; ')}`;
+}
+
 function buildBudgetContext(bills, debts, months, paycheckConfig) {
   const allMonths = computeAllMonths(months, bills);
 
@@ -45,7 +89,9 @@ ${monthLines}
 MILESTONES:
 End of 2026: ${dec26 ? fmt(dec26.monthFinal) : 'N/A'}
 End of 2027: ${dec27 ? fmt(dec27.monthFinal) : 'N/A'}
-Average overage/month: ${dec27 ? fmt(dec27.monthFinal / months.length) : 'N/A'}`;
+Average overage/month: ${dec27 ? fmt(dec27.monthFinal / months.length) : 'N/A'}
+
+${buildScheduleContext()}`;
 }
 
 export default function Chat({ bills, debts, months, paycheckConfig }) {
@@ -99,7 +145,7 @@ export default function Chat({ bills, debts, months, paycheckConfig }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 100px)', maxHeight: 700 }}>
       <div className="page-header" style={{ marginBottom: 12, flexShrink: 0 }}>
         <h2>Ask About Your Budget</h2>
-        <p className="text-sm text-muted">AI has full context of your bills, debts, income, and projections</p>
+        <p className="text-sm text-muted">AI has full context of your bills, debts, income, projections, and family schedule</p>
       </div>
 
       {/* Messages */}

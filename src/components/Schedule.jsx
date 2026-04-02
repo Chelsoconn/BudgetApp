@@ -7,6 +7,96 @@ const WORK_DAYS = 14;
 const HOME_DAYS = 7;
 const CYCLE = WORK_DAYS + HOME_DAYS;
 
+// Events: key = 'YYYY-M-D', value = { kids: 'off'|'early'|null, chelsea: bool }
+const EVENTS = {};
+function key(y, m, d) { return `${y}-${m}-${d}`; }
+function ensure(y, m, d) { const k = key(y,m,d); if (!EVENTS[k]) EVENTS[k] = { kids: null, chelsea: false }; return EVENTS[k]; }
+function addOff(y, m, d) { ensure(y,m,d).kids = 'off'; }
+function addEarly(y, m, d) { ensure(y,m,d).kids = 'early'; }
+function addChelsea(y, m, d) { ensure(y,m,d).chelsea = true; }
+
+// Days off
+addOff(2025, 8, 1);   // Labor Day
+addOff(2025, 9, 10);  // Student/Staff Holiday
+addOff(2025, 9, 13);  // Prof Dev/Student Holiday
+for (let d = 24; d <= 28; d++) addOff(2025, 10, d); // Thanksgiving
+for (let d = 22; d <= 31; d++) addOff(2025, 11, d); // Winter Break
+addOff(2026, 0, 1);   // Winter Break
+addOff(2026, 0, 2);   // Winter Break
+for (let d = 5; d <= 7; d++) addOff(2026, 0, d); // Prof Dev
+addOff(2026, 1, 13);  // Student/Staff Holiday
+addOff(2026, 1, 16);  // Prof Dev/Student Holiday
+for (let d = 16; d <= 20; d++) addOff(2026, 2, d); // Spring Break
+addOff(2026, 2, 23);  // Prof Dev/Student Holiday
+addOff(2026, 4, 25);  // Memorial Day
+
+// Early release days (2025-2026)
+addEarly(2025, 7, 13);  // Aug 13
+addEarly(2025, 8, 22);  // Sep 22
+addEarly(2025, 9, 22);  // Oct 22
+addEarly(2025, 11, 19); // Dec 19
+addEarly(2026, 1, 12);  // Feb 12
+addEarly(2026, 2, 13);  // Mar 13
+addEarly(2026, 3, 3);   // Apr 3
+addEarly(2026, 4, 15);  // May 15
+addEarly(2026, 4, 22);  // May 22 (last day)
+
+// ── 2026-2027 Lake Travis ISD ──
+// Days off
+addOff(2026, 8, 7);   // Labor Day
+addOff(2026, 8, 21);  // Yom Kippur / Student Holiday
+addOff(2026, 9, 9);   // Student Holiday (conferences)
+addOff(2026, 9, 12);  // Columbus Day
+addOff(2026, 9, 30);  // Student Holiday / Staff PD
+addOff(2026, 10, 2);  // Student Holiday (conferences)
+for (let d = 23; d <= 27; d++) addOff(2026, 10, d); // Thanksgiving
+for (let d = 18; d <= 31; d++) addOff(2026, 11, d); // Winter Break
+addOff(2027, 0, 1);   // Winter Break
+addOff(2027, 0, 4);   // Student Holiday / Staff Day
+addOff(2027, 0, 5);   // Student Holiday / Staff PD
+addOff(2027, 0, 18);  // MLK Day
+addOff(2027, 1, 11);  // Student Holiday / Staff PD
+addOff(2027, 1, 12);  // Student Holiday (conferences)
+addOff(2027, 1, 15);  // Presidents' Day
+for (let d = 15; d <= 19; d++) addOff(2027, 2, d); // Spring Break
+addOff(2027, 2, 26);  // Good Friday
+addOff(2027, 3, 23);  // No School
+addOff(2027, 3, 26);  // No School
+addOff(2027, 4, 31);  // Memorial Day
+
+// Early release days (2026-2027)
+addEarly(2027, 4, 27); // May 27 - Last day, early release district-wide
+
+// ── Chelsea's days off (federal holidays) ──
+// 2025
+addChelsea(2025, 0, 1);   // New Year's Day
+addChelsea(2025, 0, 20);  // MLK Day
+addChelsea(2025, 4, 26);  // Memorial Day
+addChelsea(2025, 6, 4);   // Independence Day
+addChelsea(2025, 8, 1);   // Labor Day
+addChelsea(2025, 10, 27); // Thanksgiving
+addChelsea(2025, 11, 25); // Christmas
+// 2026
+addChelsea(2026, 0, 1);   // New Year's Day
+addChelsea(2026, 0, 19);  // MLK Day
+addChelsea(2026, 4, 25);  // Memorial Day
+addChelsea(2026, 6, 3);   // Independence Day (observed)
+addChelsea(2026, 8, 7);   // Labor Day
+addChelsea(2026, 10, 26); // Thanksgiving
+addChelsea(2026, 11, 25); // Christmas
+// 2027
+addChelsea(2027, 0, 1);   // New Year's Day
+addChelsea(2027, 0, 18);  // MLK Day
+addChelsea(2027, 4, 31);  // Memorial Day
+addChelsea(2027, 6, 5);   // Independence Day (observed, Jul 4=Sun)
+addChelsea(2027, 8, 6);   // Labor Day
+addChelsea(2027, 10, 25); // Thanksgiving
+addChelsea(2027, 11, 24); // Christmas (observed, Dec 25=Sat)
+
+function getEvents(date) {
+  return EVENTS[key(date.getFullYear(), date.getMonth(), date.getDate())] || null;
+}
+
 function getStatus(date) {
   const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
   const anchor = new Date(ANCHOR.getFullYear(), ANCHOR.getMonth(), ANCHOR.getDate());
@@ -86,10 +176,16 @@ function Schedule() {
     const date = new Date(viewYear, viewMonth, d);
     const status = getStatus(date);
     const isToday = d === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+    const ev = getEvents(date);
+    const kidsClass = ev?.kids ? ` school-${ev.kids}` : '';
+    const chelseaClass = ev?.chelsea ? ' chelsea-off' : '';
     cells.push(
-      <div key={d} className={`sched-cell ${status}${isToday ? ' today' : ''}`}>
+      <div key={d} className={`sched-cell ${status}${isToday ? ' today' : ''}${kidsClass}${chelseaClass}`}>
         <span className="sched-day">{d}</span>
         <span className="sched-label">{status === 'work' ? 'Work' : 'Home'}</span>
+        {ev?.kids === 'off' && <span className="school-badge off">Kids Off</span>}
+        {ev?.kids === 'early' && <span className="school-badge early">Early Out</span>}
+        {ev?.chelsea && <span className="school-badge chelsea">Chelsea Off</span>}
       </div>
     );
   }
@@ -97,8 +193,8 @@ function Schedule() {
   return (
     <div>
       <div className="page-header">
-        <h2>Brandon's Schedule</h2>
-        <p className="subtitle">2 weeks on, 1 week home — rotating hitch schedule</p>
+        <h2>Family Schedule</h2>
+        <p className="subtitle">Brandon's 2-on/1-off rotation + kids' &amp; Chelsea's days off</p>
       </div>
 
       {/* Status cards */}
@@ -167,6 +263,18 @@ function Schedule() {
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', display: 'inline-block' }} />
             Home
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(251,191,36,0.25)', border: '1px solid rgba(251,191,36,0.5)', display: 'inline-block' }} />
+            No School
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(168,85,247,0.20)', border: '1px solid rgba(168,85,247,0.4)', display: 'inline-block' }} />
+            Early Out
+          </span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 12, height: 12, borderRadius: 3, background: 'rgba(59,130,246,0.20)', border: '1px solid rgba(59,130,246,0.4)', display: 'inline-block' }} />
+            Chelsea Off
           </span>
         </div>
       </div>
