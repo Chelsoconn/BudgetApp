@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-const DATA_VERSION = 5;
+const DATA_VERSION = 6;
 const DEBOUNCE_MS = 800;
 
 // Version check — clear stale localStorage on schema change
