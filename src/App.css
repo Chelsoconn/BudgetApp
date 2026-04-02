@@ -7,11 +7,11 @@
 
 /* Sidebar */
 .sidebar {
-  width: 220px;
-  min-width: 220px;
-  background: var(--surface);
+  width: 200px;
+  min-width: 200px;
+  background: linear-gradient(180deg, #13141b 0%, #0f1017 100%);
   border-right: 1px solid var(--border);
-  padding: 24px 0;
+  padding: 0;
   display: flex;
   flex-direction: column;
   position: sticky;
@@ -21,67 +21,93 @@
 }
 
 .sidebar-logo {
-  padding: 0 20px 24px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
   border-bottom: 1px solid var(--border);
 }
 
+.logo-mark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent), #a78bfa);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 15px;
+  color: white;
+  flex-shrink: 0;
+}
+
 .sidebar-logo h1 {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
-  letter-spacing: -0.5px;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
 }
 
 .sidebar-logo p {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 
 .nav-section {
-  padding: 16px 12px 8px;
-}
-
-.nav-section-label {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  padding: 0 8px;
-  margin-bottom: 4px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .nav-item {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
+  padding: 10px 12px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-muted);
   transition: all 0.15s;
   border: none;
   background: none;
   width: 100%;
   text-align: left;
+  text-decoration: none;
 }
 
 .nav-item:hover {
-  background: var(--surface2);
+  background: rgba(255, 255, 255, 0.04);
   color: var(--text);
 }
 
 .nav-item.active {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(99, 102, 241, 0.12);
+  color: var(--accent-hover);
+}
+
+.nav-item.active .nav-icon {
   color: var(--accent-hover);
 }
 
 .nav-item .nav-icon {
-  font-size: 16px;
   width: 20px;
-  text-align: center;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  opacity: 1;
 }
 
 /* Main */
