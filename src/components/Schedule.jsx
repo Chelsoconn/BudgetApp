@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 
 // Anchor: March 26 2026 = start of a work hitch
 // Pattern: 14 days work, 7 days home (21-day cycle)
@@ -238,17 +238,23 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
   const coveredCount = sitterDays.filter(d => getEntry(d.key).covered).length;
   const uncoveredCount = sitterDays.length - coveredCount;
 
-  const toggleCoverage = useCallback((dayKey, dateLabel) => {
+  const [confirmModal, setConfirmModal] = useState(null); // { dayKey, dateLabel, isCovered }
+
+  const requestToggle = useCallback((dayKey, dateLabel) => {
     const entry = sitterCoverage[dayKey];
     const old = !entry ? { covered: false, note: '' } : typeof entry === 'boolean' ? { covered: entry, note: '' } : entry;
-    const action = old.covered ? 'remove coverage for' : 'mark as covered for';
-    if (!window.confirm(`Are you sure you want to ${action} ${dateLabel}?`)) return;
+    setConfirmModal({ dayKey, dateLabel, isCovered: old.covered });
+  }, [sitterCoverage]);
+
+  const confirmToggle = useCallback(() => {
+    if (!confirmModal) return;
     setSitterCoverage(prev => {
-      const e = prev[dayKey];
+      const e = prev[confirmModal.dayKey];
       const o = !e ? { covered: false, note: '' } : typeof e === 'boolean' ? { covered: e, note: '' } : e;
-      return { ...prev, [dayKey]: { ...o, covered: !o.covered } };
+      return { ...prev, [confirmModal.dayKey]: { ...o, covered: !o.covered } };
     });
-  }, [setSitterCoverage, sitterCoverage]);
+    setConfirmModal(null);
+  }, [confirmModal, setSitterCoverage]);
 
   const updateNote = useCallback((dayKey, note) => {
     setSitterCoverage(prev => {
@@ -383,7 +389,7 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
                   <div key={d.key} className={`sitter-item${entry.covered ? ' covered' : ''}`}>
                     <div
                       className="sitter-row"
-                      onClick={() => toggleCoverage(d.key, `${DAYS[d.date.getDay()]} ${SHORT_MONTHS[d.date.getMonth()]} ${d.date.getDate()}`)}
+                      onClick={() => requestToggle(d.key, `${DAYS[d.date.getDay()]} ${SHORT_MONTHS[d.date.getMonth()]} ${d.date.getDate()}`)}
                     >
                       <span className={`sitter-check${entry.covered ? ' checked' : ''}`}>
                         {entry.covered ? '✓' : ''}
@@ -415,6 +421,29 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
           </div>
         ))}
       </div>
+
+      {/* Confirm modal */}
+      {confirmModal && (
+        <div className="modal-overlay" onClick={() => setConfirmModal(null)}>
+          <div className="modal-box" onClick={e => e.stopPropagation()}>
+            <div className="modal-icon">{confirmModal.isCovered ? '🤔' : '✅'}</div>
+            <div className="modal-title">
+              {confirmModal.isCovered ? 'Remove coverage?' : 'Mark as covered?'}
+            </div>
+            <div className="modal-body">
+              <strong>{confirmModal.dateLabel}</strong>
+              <br />
+              {confirmModal.isCovered
+                ? 'This will mark the day as needing a sitter again.'
+                : 'This will mark the day as handled.'}
+            </div>
+            <div className="modal-actions">
+              <button className="modal-btn no" onClick={() => setConfirmModal(null)}>No</button>
+              <button className="modal-btn yes" onClick={confirmToggle}>Yes</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
