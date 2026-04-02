@@ -142,17 +142,19 @@ const monthConfigs = [
   { mi: 11, yr: 2027, spending: 2150, other: 500, otherLabel: 'Childcare' },
 ];
 
-export const initialMonths = monthConfigs.map((cfg, idx) => ({
-  id: idx + 1,
-  name: monthNames[cfg.mi],
-  year: cfg.yr,
-  spending: cfg.spending,
-  other: cfg.other,
-  labels: cfg.otherLabel ? { other: cfg.otherLabel } : {},
-  paychecks: generatePaychecks(cfg.yr, cfg.mi),
-  adjustments: cfg.adjustments ?? [],
-  notes: cfg.notes ?? '',
-}));
+export const initialMonths = monthConfigs.map((cfg, idx) => {
+  const expenses = [{ label: 'Spending', amount: cfg.spending }];
+  if (cfg.other) expenses.push({ label: cfg.otherLabel || 'Other', amount: cfg.other });
+  return {
+    id: idx + 1,
+    name: monthNames[cfg.mi],
+    year: cfg.yr,
+    expenses,
+    paychecks: generatePaychecks(cfg.yr, cfg.mi),
+    adjustments: cfg.adjustments ?? [],
+    notes: cfg.notes ?? '',
+  };
+});
 
 export const billCategories = ['Housing', 'Debt', 'Insurance', 'Utilities', 'Health', 'Subscriptions', 'Vehicles', 'Transportation', 'Other'];
 

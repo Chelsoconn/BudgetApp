@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 
 // Bump this to force a data reset when the schema changes
-const DATA_VERSION = 4;
+const DATA_VERSION = 5;
 
 // On first load, check if data version has changed and clear stale data
 if (typeof window !== 'undefined') {

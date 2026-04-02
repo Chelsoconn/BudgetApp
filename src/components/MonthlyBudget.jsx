@@ -94,7 +94,7 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
     const newId = Math.max(0, ...months.map((m) => m.id)) + 1;
     setMonths([...months, {
       id: newId, name: newMonth.name, year: parseInt(newMonth.year),
-      spending: 2150, other: 0, labels: {}, notes: '',
+      expenses: [{ label: 'Spending', amount: 2150 }], notes: '',
       paychecks: [], adjustments: [],
     }]);
     setNewMonth({ name: '', year: '2025' });
@@ -460,43 +460,69 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
             </div>
           )}
 
-          {[
-            { key: 'spending',  defaultLabel: 'Spending' },
-            { key: 'other',     defaultLabel: 'Other' },
-          ].filter(({ key }) => month[key] !== undefined).map(({ key, defaultLabel }) => {
-            const label = (month.labels ?? {})[key] ?? defaultLabel;
-            return (
-              <div key={key} className="summary-row">
-                {editingLabel === key ? (
-                  <input
-                    autoFocus
-                    type="text"
-                    defaultValue={label}
-                    onBlur={(e) => {
-                      const val = e.target.value.trim() || defaultLabel;
-                      updateMonth({ labels: { ...(month.labels ?? {}), [key]: val } });
-                      setEditingLabel(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') e.target.blur();
-                      if (e.key === 'Escape') setEditingLabel(null);
-                    }}
-                    style={{ fontSize: 13, color: 'var(--text-muted)', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', outline: 'none', width: 140 }}
-                  />
-                ) : (
-                  <span
-                    className="text-muted"
-                    title="Click to rename"
-                    onClick={() => setEditingLabel(key)}
-                    style={{ cursor: 'text', borderBottom: '1px dashed transparent' }}
-                    onMouseEnter={e => e.target.style.borderBottomColor = 'var(--border)'}
-                    onMouseLeave={e => e.target.style.borderBottomColor = 'transparent'}
-                  >{label}</span>
-                )}
-                <input type="number" className="editable-amount" value={month[key] ?? 0} onChange={(e) => updateMonth({ [key]: parseFloat(e.target.value) || 0 })} />
+          {/* Editable expense lines */}
+          {(month.expenses ?? []).map((exp, i) => (
+            <div key={i} className="summary-row">
+              {editingLabel === i ? (
+                <input
+                  autoFocus
+                  type="text"
+                  defaultValue={exp.label}
+                  onBlur={(e) => {
+                    const updated = [...(month.expenses ?? [])];
+                    updated[i] = { ...updated[i], label: e.target.value.trim() || 'Expense' };
+                    updateMonth({ expenses: updated });
+                    setEditingLabel(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') e.target.blur();
+                    if (e.key === 'Escape') setEditingLabel(null);
+                  }}
+                  style={{ fontSize: 13, color: 'var(--text-muted)', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', outline: 'none', width: 140 }}
+                />
+              ) : (
+                <span
+                  className="text-muted"
+                  title="Click to rename"
+                  onClick={() => setEditingLabel(i)}
+                  style={{ cursor: 'text', borderBottom: '1px dashed transparent' }}
+                  onMouseEnter={e => e.target.style.borderBottomColor = 'var(--border)'}
+                  onMouseLeave={e => e.target.style.borderBottomColor = 'transparent'}
+                >{exp.label}</span>
+              )}
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  className="editable-amount"
+                  value={exp.amount}
+                  onChange={(e) => {
+                    const updated = [...(month.expenses ?? [])];
+                    updated[i] = { ...updated[i], amount: parseFloat(e.target.value) || 0 };
+                    updateMonth({ expenses: updated });
+                  }}
+                />
+                <button
+                  className="btn-danger btn-sm"
+                  onClick={() => {
+                    const updated = (month.expenses ?? []).filter((_, j) => j !== i);
+                    updateMonth({ expenses: updated });
+                  }}
+                >✕</button>
               </div>
-            );
-          })}
+            </div>
+          ))}
+
+          {/* Add expense button */}
+          <div style={{ padding: '6px 0' }}>
+            <button
+              className="btn-ghost btn-sm"
+              onClick={() => {
+                const updated = [...(month.expenses ?? []), { label: 'New Expense', amount: 0 }];
+                updateMonth({ expenses: updated });
+              }}
+            >+ Add Expense</button>
+          </div>
+
           <div className="divider" />
           <div className="flex justify-between font-bold">
             <span>Total Expenses</span>

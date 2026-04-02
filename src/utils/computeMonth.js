@@ -13,7 +13,7 @@ export function computeMonthFinancials(month, bills, carryoverIn = 0) {
   const totalIncome = month.paychecks.reduce((s, p) => s + p.amount, 0);
   const bankBalance = month.bankBalance ?? 0;
   const amexBalance = month.amexBalance ?? 0;
-  const extraExpenses = (month.spending ?? 0) + (month.other ?? 0);
+  const extraExpenses = (month.expenses ?? []).reduce((s, e) => s + (e.amount ?? 0), 0);
   const totalExpenses = activeBillsTotal + extraExpenses;
   const adjustments = (month.adjustments ?? []).reduce((s, a) => s + a.amount, 0);
 
