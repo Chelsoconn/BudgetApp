@@ -55,54 +55,55 @@ export const chelseaPaycheck = 3885;
 // Brandon: every Friday, cycle S(0), B(1), S(2) starting from Fri Apr 4 2025 at pos 0
 // Chelsea: 15th and last day of each month, $3,885 each
 
-function getFridays(year, monthIdx) {
-  const fridays = [];
-  const d = new Date(year, monthIdx, 1);
-  while (d.getDay() !== 5) d.setDate(d.getDate() + 1);
-  while (d.getMonth() === monthIdx) {
-    fridays.push(new Date(d));
-    d.setDate(d.getDate() + 7);
-  }
-  return fridays;
-}
-
-function lastDayOfMonth(year, monthIdx) {
-  return new Date(year, monthIdx + 1, 0).getDate();
-}
-
+// Pure arithmetic date helpers — no Date objects, no timezone issues
 function pad(n) { return n < 10 ? '0' + n : '' + n; }
-function toStr(d) { return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+
+function daysInMonth(year, monthIdx) {
+  const table = [31, (year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0)) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  return table[monthIdx];
+}
+
+// Day-of-week for any date (0=Sun..6=Sat) using Tomohiko Sakamoto's algorithm
+function dayOfWeek(y, m, d) {
+  const t = [0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4];
+  if (m < 3) y--;
+  return (y + Math.floor(y / 4) - Math.floor(y / 100) + Math.floor(y / 400) + t[m - 1] + d) % 7;
+}
+
+// Days since an epoch (Jan 1, 2000) for week-counting
+function daysSinceEpoch(y, m, d) {
+  let days = 0;
+  for (let yr = 2000; yr < y; yr++) days += (yr % 4 === 0 && (yr % 100 !== 0 || yr % 400 === 0)) ? 366 : 365;
+  for (let mo = 0; mo < m; mo++) days += daysInMonth(y, mo);
+  return days + d;
+}
 
 // Reference: Friday April 4, 2025 = cycle position 0
-const cycleRef = new Date(2025, 3, 4); // Apr 4 2025 (Friday)
-
-function cyclePos(friday) {
-  const diffMs = friday.getTime() - cycleRef.getTime();
-  const weeks = Math.round(diffMs / (7 * 24 * 60 * 60 * 1000));
-  return ((weeks % 3) + 3) % 3; // 0=S, 1=B, 2=S
-}
+const cycleRefDays = daysSinceEpoch(2025, 3, 4);
 
 function generatePaychecks(year, monthIdx) {
   const paychecks = [];
+  const mm = pad(monthIdx + 1);
+  const dim = daysInMonth(year, monthIdx);
 
-  // Brandon — every Friday
-  const fridays = getFridays(year, monthIdx);
-  for (const fri of fridays) {
-    const pos = cyclePos(fri);
-    const isBig = pos === 1;
-    paychecks.push({
-      date: toStr(fri),
-      amount: isBig ? brandonBig : brandonSmall,
-      person: 'Brandon',
-      type: isBig ? 'big' : 'small',
-    });
+  // Brandon — every Friday (dayOfWeek === 5)
+  for (let d = 1; d <= dim; d++) {
+    if (dayOfWeek(year, monthIdx + 1, d) === 5) {
+      const weeksSinceRef = (daysSinceEpoch(year, monthIdx, d) - cycleRefDays) / 7;
+      const pos = ((Math.round(weeksSinceRef) % 3) + 3) % 3; // 0=S, 1=B, 2=S
+      const isBig = pos === 1;
+      paychecks.push({
+        date: `${year}-${mm}-${pad(d)}`,
+        amount: isBig ? brandonBig : brandonSmall,
+        person: 'Brandon',
+        type: isBig ? 'big' : 'small',
+      });
+    }
   }
 
   // Chelsea — 15th and last day of month
-  const the15th = `${year}-${pad(monthIdx + 1)}-15`;
-  const lastDay = `${year}-${pad(monthIdx + 1)}-${pad(lastDayOfMonth(year, monthIdx))}`;
-  paychecks.push({ date: the15th, amount: chelseaPaycheck, person: 'Chelsea', type: 'semi-monthly' });
-  paychecks.push({ date: lastDay, amount: chelseaPaycheck, person: 'Chelsea', type: 'semi-monthly' });
+  paychecks.push({ date: `${year}-${mm}-15`, amount: chelseaPaycheck, person: 'Chelsea', type: 'semi-monthly' });
+  paychecks.push({ date: `${year}-${mm}-${pad(dim)}`, amount: chelseaPaycheck, person: 'Chelsea', type: 'semi-monthly' });
 
   // Sort by date
   paychecks.sort((a, b) => a.date.localeCompare(b.date));
