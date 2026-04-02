@@ -52,10 +52,10 @@ function App() {
     <div className="app">
       <nav className="sidebar">
         <div className="sidebar-logo">
-          <div className="logo-mark">B</div>
+          <div className="logo-mark">B&C</div>
           <div>
             <h1>Budget</h1>
-            <p>House Tracker</p>
+            <p>Make that Monaay</p>
           </div>
         </div>
         <div className="nav-section">
