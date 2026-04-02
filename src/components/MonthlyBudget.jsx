@@ -130,21 +130,28 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
         <button className="btn-primary btn-sm" onClick={() => setShowAddMonth(true)}>+ Add Month</button>
       </div>
 
-      {/* Year pills + Month dropdown */}
+      {/* Year pills + Month dropdown — only current month and forward */}
       {(() => {
-        const years = [...new Set(months.map((m) => m.year))].sort();
+        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const now = new Date();
+        const currentKey = now.getFullYear() * 12 + now.getMonth();
+        const monthKey = (m) => m.year * 12 + monthNames.indexOf(m.name);
+
+        const futureMonths = months.filter((m) => monthKey(m) >= currentKey);
+        const futureYears = [...new Set(futureMonths.map((m) => m.year))].sort();
         const selectedYear = month.year;
-        const monthsInYear = months.filter((m) => m.year === selectedYear);
+        const monthsInYear = futureMonths.filter((m) => m.year === selectedYear);
+
         return (
           <div className="flex items-center gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
             <div className="flex gap-2">
-              {years.map((yr) => (
+              {futureYears.map((yr) => (
                 <button
                   key={yr}
                   className={`month-tab${selectedYear === yr ? ' active' : ''}`}
                   onClick={() => {
-                    const first = months.findIndex((m) => m.year === yr);
-                    if (first >= 0) setSelectedIdx(first);
+                    const first = futureMonths.find((m) => m.year === yr);
+                    if (first) setSelectedIdx(months.indexOf(first));
                   }}
                 >
                   {yr}
