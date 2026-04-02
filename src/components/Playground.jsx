@@ -234,13 +234,32 @@ function PgChat({ bills, debts, months, paycheckConfig }) {
     setError('');
 
     try {
-      // Build a simple context
       const totalBills = bills.reduce((s, b) => s + b.amount, 0);
-      const allMonths = computeAllMonths(months, bills);
-      const dec27 = allMonths.find(m => m.name === 'December' && m.year === 2027);
-      const budgetContext = `This is a WHAT-IF SCENARIO (not the real budget).
-Bills: ${fmt(totalBills)}/mo, End of 2027: ${dec27 ? fmt(dec27.monthFinal) : 'N/A'}
-Monthly data: ${allMonths.map(m => `${m.name} ${m.year}: ${fmt(m.monthFinal)}`).join(', ')}`;
+      const allM = computeAllMonths(months, bills);
+      const dec27 = allM.find(m => m.name === 'December' && m.year === 2027);
+      const billLines = bills.map(b => `${b.name}: ${fmt(b.amount)}/mo`).join('\n');
+      const debtLines = Object.values(debts).flat().map(d => `${d.name}: ${fmt(d.amount)}`).join('\n');
+      const monthLines = allM.map(m => {
+        const mo = months.find(x => x.name === m.name && x.year === m.year);
+        const income = mo?.paychecks.reduce((s, p) => s + p.amount, 0) ?? 0;
+        return `${m.name} ${m.year}: Income ${fmt(income)}, Bills+Expenses: ${fmt(m.totalExpenses)}, Final: ${fmt(m.monthFinal)}`;
+      }).join('\n');
+      const budgetContext = `THIS IS A WHAT-IF SCENARIO (not the real budget). Analyze based on these scenario numbers only.
+
+SCENARIO BILLS (${fmt(totalBills)}/mo):
+${billLines}
+
+SCENARIO DEBTS:
+${debtLines}
+
+SCENARIO PAYCHECK CONFIG:
+Brandon small: ${fmt(paycheckConfig.brandonSmall)}, big: ${fmt(paycheckConfig.brandonBig)}
+Chelsea: ${fmt(paycheckConfig.chelseaPay)}/check
+
+SCENARIO MONTHLY BREAKDOWN:
+${monthLines}
+
+End of 2027: ${dec27 ? fmt(dec27.monthFinal) : 'N/A'}`;
 
       const res = await fetch('/api/chat', {
         method: 'POST',
@@ -311,17 +330,17 @@ export default function Playground({ playgrounds, setPlaygrounds, mainBills, mai
   };
 
   const deletePlayground = (id) => {
-    setPlaygrounds(playgrounds.filter((p) => p.id !== id));
+    setPlaygrounds(prev => prev.filter((p) => p.id !== id));
     if (pgId === id) navigate('/playgrounds');
   };
 
   const renamePlayground = (id, name) => {
-    setPlaygrounds(playgrounds.map((p) => p.id === id ? { ...p, name } : p));
+    setPlaygrounds(prev => prev.map((p) => p.id === id ? { ...p, name } : p));
     setShowRename(null);
   };
 
   const updatePg = (updates) => {
-    setPlaygrounds(playgrounds.map((p) => p.id === pgId ? { ...p, ...updates } : p));
+    setPlaygrounds(prev => prev.map((p) => p.id === pgId ? { ...p, ...updates } : p));
   };
 
   // Playground list view
