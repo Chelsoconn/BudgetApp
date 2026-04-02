@@ -1,3 +1,71 @@
+/* Dashboard note */
+.dash-note {
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08));
+  border: 1px solid rgba(99,102,241,0.15);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  position: relative;
+}
+.dash-note:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(99,102,241,0.1);
+}
+.dash-note-icon { font-size: 20px; flex-shrink: 0; }
+.dash-note-text {
+  font-size: 15px;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.5;
+  color: var(--text);
+  flex: 1;
+}
+.dash-note-edit-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+.dash-note:hover .dash-note-edit-hint { opacity: 1; }
+
+.dash-note-empty {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  padding: 14px 20px;
+  text-align: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  font-size: 14px;
+  transition: border-color 0.15s, color 0.15s;
+}
+.dash-note-empty:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.dash-note-edit {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+}
+.dash-note-edit textarea {
+  width: 100%;
+  font-size: 15px;
+  font-style: italic;
+  resize: none;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  outline: none;
+  line-height: 1.5;
+}
+
 /* Layout */
 .app {
   display: flex;

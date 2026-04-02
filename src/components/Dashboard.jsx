@@ -1,9 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { fmt, pct } from '../utils/format';
 import { categoryColors } from '../data/budgetData';
 import { computeAllMonths, computeMonthFinancials, computeCarryover } from '../utils/computeMonth';
 
-export default function Dashboard({ bills, debts, months }) {
+export default function Dashboard({ bills, debts, months, dashNote, setDashNote }) {
+  const [editingNote, setEditingNote] = useState(false);
+  const [noteInput, setNoteInput] = useState(dashNote || '');
   const totalBills = bills.reduce((s, b) => s + b.amount, 0);
 
   const allMonths = useMemo(() => computeAllMonths(months, bills), [months, bills]);
@@ -61,6 +63,45 @@ export default function Dashboard({ bills, debts, months }) {
         <h2>Dashboard</h2>
         <p>Your financial overview at a glance</p>
       </div>
+
+      {/* Note / Quote */}
+      {editingNote ? (
+        <div className="dash-note-edit mb-4">
+          <textarea
+            autoFocus
+            value={noteInput}
+            onChange={e => setNoteInput(e.target.value)}
+            onKeyDown={e => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                setDashNote(noteInput.trim());
+                setEditingNote(false);
+              }
+              if (e.key === 'Escape') {
+                setNoteInput(dashNote || '');
+                setEditingNote(false);
+              }
+            }}
+            placeholder="Write a note, quote, or reminder..."
+            rows={2}
+          />
+          <div className="flex gap-2" style={{ marginTop: 8 }}>
+            <button className="btn-primary btn-sm" onClick={() => { setDashNote(noteInput.trim()); setEditingNote(false); }}>Save</button>
+            <button className="btn-ghost btn-sm" onClick={() => { setNoteInput(dashNote || ''); setEditingNote(false); }}>Cancel</button>
+            {dashNote && <button className="btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => { setDashNote(''); setNoteInput(''); setEditingNote(false); }}>Delete</button>}
+          </div>
+        </div>
+      ) : dashNote ? (
+        <div className="dash-note mb-4" onClick={() => { setNoteInput(dashNote); setEditingNote(true); }}>
+          <span className="dash-note-icon">&#10024;</span>
+          <span className="dash-note-text">{dashNote}</span>
+          <span className="dash-note-edit-hint">tap to edit</span>
+        </div>
+      ) : (
+        <div className="dash-note-empty mb-4" onClick={() => setEditingNote(true)}>
+          <span>+ Add a note or quote</span>
+        </div>
+      )}
 
       {/* Top stats */}
       <div className="grid-3 mb-4">

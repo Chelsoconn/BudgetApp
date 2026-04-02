@@ -46,6 +46,7 @@ function App() {
   const [playgrounds, setPlaygrounds] = usePersistedState('budget_playgrounds', []);
   const [sitterCoverage, setSitterCoverage] = usePersistedState('sitter_coverage', {});
   const [chatMessages, setChatMessages] = useState([]);
+  const [dashNote, setDashNote] = usePersistedState('dash_note', '');
 
 
   return (
@@ -96,7 +97,7 @@ function App() {
       <main className="main">
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard bills={bills} debts={debts} months={months} />} />
+          <Route path="/dashboard" element={<Dashboard bills={bills} debts={debts} months={months} dashNote={dashNote} setDashNote={setDashNote} />} />
           <Route path="/bills" element={<Bills bills={bills} setBills={setBills} />} />
           <Route path="/monthly" element={<MonthlyBudget bills={bills} months={months} setMonths={setMonths} paycheckConfig={paycheckConfig} />} />
           <Route path="/monthly/:monthSlug" element={<MonthlyBudget bills={bills} months={months} setMonths={setMonths} paycheckConfig={paycheckConfig} />} />
