@@ -9,17 +9,24 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
   const { monthSlug } = useParams();
   const navigate = useNavigate();
 
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const now = new Date();
+  const currentKey = now.getFullYear() * 12 + now.getMonth();
+  const monthKey = (m) => m.year * 12 + monthNames.indexOf(m.name);
+
   const selectedIdx = (() => {
     if (monthSlug) {
       const idx = months.findIndex((m) => toSlug(m) === monthSlug);
       if (idx >= 0) return idx;
     }
-    // Default to April 2026
-    const idx = months.findIndex((m) => m.year === 2026 && m.name === 'April');
+    // Default to current month
+    const curName = monthNames[now.getMonth()];
+    const idx = months.findIndex((m) => m.year === now.getFullYear() && m.name === curName);
     return idx >= 0 ? idx : 0;
   })();
 
   const setSelectedIdx = (i) => navigate(`/monthly/${toSlug(months[i])}`, { replace: true });
+  const [showArchived, setShowArchived] = useState(false);
   const [showAddPaycheck, setShowAddPaycheck] = useState(false);
   const [showAddAdj, setShowAddAdj] = useState(false);
   const [newPaycheck, setNewPaycheck] = useState({ date: '', amount: '', person: 'Brandon', type: 'small' });
@@ -130,47 +137,72 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
         <button className="btn-primary btn-sm" onClick={() => setShowAddMonth(true)}>+ Add Month</button>
       </div>
 
-      {/* Year pills + Month dropdown — only current month and forward */}
+      {/* Current / Archived toggle + month selector */}
       {(() => {
-        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-        const now = new Date();
-        const currentKey = now.getFullYear() * 12 + now.getMonth();
-        const monthKey = (m) => m.year * 12 + monthNames.indexOf(m.name);
-
-        const futureMonths = months.filter((m) => monthKey(m) >= currentKey);
-        const futureYears = [...new Set(futureMonths.map((m) => m.year))].sort();
+        const visibleMonths = showArchived
+          ? months.filter((m) => monthKey(m) < currentKey)
+          : months.filter((m) => monthKey(m) >= currentKey);
+        const years = [...new Set(visibleMonths.map((m) => m.year))].sort();
         const selectedYear = month.year;
-        const monthsInYear = futureMonths.filter((m) => m.year === selectedYear);
+        const monthsInYear = visibleMonths.filter((m) => m.year === selectedYear);
+        const archivedCount = months.filter((m) => monthKey(m) < currentKey).length;
 
         return (
-          <div className="flex items-center gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
-            <div className="flex gap-2">
-              {futureYears.map((yr) => (
-                <button
-                  key={yr}
-                  className={`month-tab${selectedYear === yr ? ' active' : ''}`}
-                  onClick={() => {
-                    const first = futureMonths.find((m) => m.year === yr);
-                    if (first) setSelectedIdx(months.indexOf(first));
-                  }}
-                >
-                  {yr}
-                </button>
-              ))}
+          <>
+            <div className="flex gap-2 mb-3">
+              <button
+                className={`month-tab${!showArchived ? ' active' : ''}`}
+                onClick={() => {
+                  setShowArchived(false);
+                  // Jump to current month
+                  const curName = monthNames[now.getMonth()];
+                  const idx = months.findIndex((m) => m.year === now.getFullYear() && m.name === curName);
+                  if (idx >= 0) setSelectedIdx(idx);
+                }}
+              >
+                Current
+              </button>
+              <button
+                className={`month-tab${showArchived ? ' active' : ''}`}
+                onClick={() => {
+                  setShowArchived(true);
+                  // Jump to most recent archived month
+                  const archived = months.filter((m) => monthKey(m) < currentKey);
+                  if (archived.length > 0) setSelectedIdx(months.indexOf(archived[archived.length - 1]));
+                }}
+              >
+                Archived ({archivedCount})
+              </button>
             </div>
-            <select
-              value={selectedIdx}
-              onChange={(e) => setSelectedIdx(Number(e.target.value))}
-              style={{ padding: '7px 12px', fontSize: 14, minWidth: 140 }}
-            >
-              {monthsInYear.map((m) => {
-                const idx = months.indexOf(m);
-                return (
-                  <option key={m.id} value={idx}>{m.name}</option>
-                );
-              })}
-            </select>
-          </div>
+            <div className="flex items-center gap-3 mb-4" style={{ flexWrap: 'wrap' }}>
+              <div className="flex gap-2">
+                {years.map((yr) => (
+                  <button
+                    key={yr}
+                    className={`month-tab${selectedYear === yr ? ' active' : ''}`}
+                    onClick={() => {
+                      const first = visibleMonths.find((m) => m.year === yr);
+                      if (first) setSelectedIdx(months.indexOf(first));
+                    }}
+                  >
+                    {yr}
+                  </button>
+                ))}
+              </div>
+              <select
+                value={selectedIdx}
+                onChange={(e) => setSelectedIdx(Number(e.target.value))}
+                style={{ padding: '7px 12px', fontSize: 14, minWidth: 140 }}
+              >
+                {monthsInYear.map((m) => {
+                  const idx = months.indexOf(m);
+                  return (
+                    <option key={m.id} value={idx}>{m.name}</option>
+                  );
+                })}
+              </select>
+            </div>
+          </>
         );
       })()}
 
