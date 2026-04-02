@@ -550,3 +550,53 @@
   .grid-4 { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
 }
+
+/* Schedule calendar */
+.sched-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.sched-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.sched-day-header {
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+.sched-cell {
+  border-radius: 6px;
+  padding: 6px 4px;
+  text-align: center;
+  min-height: 48px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.sched-cell.empty { background: none; }
+.sched-cell.work {
+  background: rgba(239,68,68,0.10);
+  border: 1px solid rgba(239,68,68,0.20);
+}
+.sched-cell.home {
+  background: rgba(34,197,94,0.10);
+  border: 1px solid rgba(34,197,94,0.20);
+}
+.sched-cell.today {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+  font-weight: 700;
+}
+.sched-day { font-size: 14px; font-weight: 600; }
+.sched-label { font-size: 10px; color: var(--text-muted); }
+.sched-cell.work .sched-label { color: rgba(239,68,68,0.8); }
+.sched-cell.home .sched-label { color: rgba(34,197,94,0.8); }
