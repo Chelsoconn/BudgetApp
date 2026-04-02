@@ -6,7 +6,15 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '5mb' }));
-app.use(express.static(path.join(__dirname, 'dist')));
+app.use(express.static(path.join(__dirname, 'dist'), {
+  etag: false,
+  setHeaders: (res, filePath) => {
+    // HTML should never be cached (it references hashed JS/CSS)
+    if (filePath.endsWith('.html')) {
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    }
+  },
+}));
 
 // GET /api/data — bulk load all keys
 app.get('/api/data', async (req, res) => {
