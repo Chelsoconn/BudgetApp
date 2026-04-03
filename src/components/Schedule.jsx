@@ -132,8 +132,7 @@ const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 // Compute all weekdays where kids are off/early, Brandon is working, Chelsea is working
 function computeSitterDays() {
   const today = new Date();
-  // Start from yesterday so the day isn't removed too early
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   const end = new Date(2027, 6, 31);
   const results = [];
   let d = new Date(todayMid);
@@ -168,7 +167,7 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
 
   // Clean up sitter entries for days that have fully passed (2+ days ago)
   useEffect(() => {
-    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    const cutoff = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const staleKeys = Object.keys(sitterCoverage).filter(k => {
       const parts = k.split('-').map(Number); // YYYY-M-D
       if (parts.length !== 3) return false;
@@ -290,47 +289,27 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
     });
   }, [setSitterCoverage]);
 
-  // Group sitter days by season/year
-  const sitterGrouped = useMemo(() => {
-    // Season boundaries:
-    // School 2025-2026: Aug 8 2025 - May 22 2026
-    // Summer 2026: May 23 - Aug 11 2026
-    // School 2026-2027: Aug 12 2026 - May 27 2027
-    // Summer 2027: May 28 - Jul 31 2027
-    function getSeason(date) {
-      const y = date.getFullYear();
-      const m = date.getMonth();
-      const d = date.getDate();
-      const key = y * 10000 + m * 100 + d;
-      if (key <= 20260522) return { id: 'school-25-26', label: 'School Year 2025–2026', icon: '📚' };
-      if (key <= 20260811) return { id: 'summer-26', label: 'Summer 2026', icon: '☀️' };
-      if (key <= 20270527) return { id: 'school-26-27', label: 'School Year 2026–2027', icon: '📚' };
-      return { id: 'summer-27', label: 'Summer 2027', icon: '☀️' };
-    }
-
-    const sections = [];
-    let currentSection = null;
-    let currentMonth = null;
-
+  // Group sitter days by year > month
+  const sitterByYear = useMemo(() => {
+    const yearMap = {};
     for (const d of sitterDays) {
-      const season = getSeason(d.date);
-      if (!currentSection || currentSection.id !== season.id) {
-        currentSection = { ...season, months: [] };
-        sections.push(currentSection);
-        currentMonth = null;
-      }
-      const monthLabel = `${MONTHS[d.date.getMonth()]} ${d.date.getFullYear()}`;
-      if (!currentMonth || currentMonth.label !== monthLabel) {
-        currentMonth = { label: monthLabel, days: [] };
-        currentSection.months.push(currentMonth);
-      }
-      currentMonth.days.push(d);
+      const y = d.date.getFullYear();
+      if (!yearMap[y]) yearMap[y] = [];
+      yearMap[y].push(d);
     }
-    return sections;
+    return Object.entries(yearMap).sort((a, b) => a[0] - b[0]).map(([year, days]) => {
+      const months = [];
+      let cur = null;
+      for (const d of days) {
+        const label = `${MONTHS[d.date.getMonth()]}`;
+        if (!cur || cur.label !== label) { cur = { label, days: [] }; months.push(cur); }
+        cur.days.push(d);
+      }
+      return { year: Number(year), months, days };
+    });
   }, [sitterDays]);
 
-  const [collapsedSections, setCollapsedSections] = useState({});
-  const toggleSection = (id) => setCollapsedSections(prev => ({ ...prev, [id]: !prev[id] }));
+  const [selectedSitterYear, setSelectedSitterYear] = useState(() => new Date().getFullYear());
 
   return (
     <div>
@@ -427,83 +406,77 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
           </div>
         </div>
 
-        {sitterGrouped.map(section => {
-          const allDays = section.months.flatMap(m => m.days);
-          const sectionUncovered = allDays.filter(d => !getEntry(d.key).covered).length;
-          const sectionTotal = allDays.length;
-          const collapsed = !!collapsedSections[section.id];
-
-          return (
-            <div key={section.id} style={{ marginBottom: 16 }}>
-              <div
-                onClick={() => toggleSection(section.id)}
-                style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '10px 0', userSelect: 'none' }}
+        {/* Year selector */}
+        <div className="flex gap-2 mb-3">
+          {sitterByYear.map(g => {
+            const unc = g.days.filter(d => !getEntry(d.key).covered).length;
+            return (
+              <button
+                key={g.year}
+                className={`archive-tab${selectedSitterYear === g.year ? ' active' : ''}`}
+                onClick={() => setSelectedSitterYear(g.year)}
               >
-                <span style={{ fontSize: 10, transition: 'transform 0.15s', transform: collapsed ? 'rotate(0deg)' : 'rotate(90deg)' }}>▶</span>
-                <span style={{ fontSize: 18 }}>{section.icon}</span>
-                <span style={{ fontSize: 16, fontWeight: 700, flex: 1 }}>{section.label}</span>
-                <span style={{ fontSize: 12, color: sectionUncovered > 0 ? 'var(--danger)' : 'var(--success)', fontWeight: 600 }}>
-                  {sectionUncovered > 0 ? `${sectionUncovered} need coverage` : 'All covered'}
-                </span>
-                <span className="text-xs text-muted">{sectionTotal} days</span>
-              </div>
+                {g.year}
+                {unc > 0 && <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.8 }}>({unc})</span>}
+              </button>
+            );
+          })}
+        </div>
 
-              {!collapsed && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {section.months.map(mo => {
-                    const moUncovered = mo.days.filter(d => !getEntry(d.key).covered).length;
-                    return (
-                      <div key={mo.label} className="card" style={{ padding: '12px 16px' }}>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
-                          <span>{mo.label}</span>
-                          <span style={{ fontWeight: 400, fontSize: 12 }}>
-                            {moUncovered > 0 ? `${moUncovered} uncovered` : '✓ all set'}
-                          </span>
+        {/* Months for selected year */}
+        {sitterByYear.filter(g => g.year === selectedSitterYear).map(g => (
+          <div key={g.year} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {g.months.map(mo => {
+              const moUncovered = mo.days.filter(d => !getEntry(d.key).covered).length;
+              return (
+                <div key={mo.label} className="card" style={{ padding: '12px 16px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6, color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>{mo.label}</span>
+                    <span style={{ fontWeight: 400, fontSize: 12 }}>
+                      {moUncovered > 0 ? `${moUncovered} uncovered` : '✓ all set'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {mo.days.map(d => {
+                      const entry = getEntry(d.key);
+                      return (
+                        <div key={d.key} className={`sitter-item${entry.covered ? ' covered' : ''}`}>
+                          <div
+                            className="sitter-row"
+                            onClick={() => requestToggle(d.key, `${DAYS[d.date.getDay()]} ${SHORT_MONTHS[d.date.getMonth()]} ${d.date.getDate()}`)}
+                          >
+                            <span className={`sitter-check${entry.covered ? ' checked' : ''}`}>
+                              {entry.covered ? '✓' : ''}
+                            </span>
+                            <span className="sitter-date">
+                              {DAYS[d.date.getDay()]} {SHORT_MONTHS[d.date.getMonth()]} {d.date.getDate()}
+                            </span>
+                            <span className={`sitter-type ${d.type}`}>
+                              {d.type === 'early' ? 'Half Day' : 'Full Day'}
+                            </span>
+                            <span className={`sitter-status ${entry.covered ? 'ok' : 'need'}`}>
+                              {entry.covered ? 'Covered' : 'Needs Sitter'}
+                            </span>
+                          </div>
+                          {entry.covered && (
+                            <input
+                              className="sitter-note"
+                              type="text"
+                              placeholder="Who's watching? Details..."
+                              value={entry.note}
+                              onClick={e => e.stopPropagation()}
+                              onChange={e => updateNote(d.key, e.target.value)}
+                            />
+                          )}
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                          {mo.days.map(d => {
-                            const entry = getEntry(d.key);
-                            return (
-                              <div key={d.key} className={`sitter-item${entry.covered ? ' covered' : ''}`}>
-                                <div
-                                  className="sitter-row"
-                                  onClick={() => requestToggle(d.key, `${DAYS[d.date.getDay()]} ${SHORT_MONTHS[d.date.getMonth()]} ${d.date.getDate()}`)}
-                                >
-                                  <span className={`sitter-check${entry.covered ? ' checked' : ''}`}>
-                                    {entry.covered ? '✓' : ''}
-                                  </span>
-                                  <span className="sitter-date">
-                                    {DAYS[d.date.getDay()]} {SHORT_MONTHS[d.date.getMonth()]} {d.date.getDate()}
-                                  </span>
-                                  <span className={`sitter-type ${d.type}`}>
-                                    {d.type === 'early' ? 'Half Day' : 'Full Day'}
-                                  </span>
-                                  <span className={`sitter-status ${entry.covered ? 'ok' : 'need'}`}>
-                                    {entry.covered ? 'Covered' : 'Needs Sitter'}
-                                  </span>
-                                </div>
-                                {entry.covered && (
-                                  <input
-                                    className="sitter-note"
-                                    type="text"
-                                    placeholder="Who's watching? Details..."
-                                    value={entry.note}
-                                    onClick={e => e.stopPropagation()}
-                                    onChange={e => updateNote(d.key, e.target.value)}
-                                  />
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              )}
-            </div>
-          );
-        })}
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       {/* Confirm modal */}
