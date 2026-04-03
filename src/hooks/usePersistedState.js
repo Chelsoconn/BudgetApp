@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 
 const DATA_VERSION = 9;
 const DEBOUNCE_MS = 400;
+const FORCE_PUSH_VERSION = 2; // Bump this to force localStorage → DB push
 
 // Version check — runs once on page load
 if (typeof window !== 'undefined') {
@@ -49,10 +50,29 @@ export function usePersistedState(key, defaultValue) {
   const keyRef = useRef(key);
   keyRef.current = key;
 
-  // On mount: DB is source of truth — load from it
+  // On mount: load from DB, or force-push from localStorage if version bumped
   useEffect(() => {
     if (hasLoaded.current) return;
     hasLoaded.current = true;
+
+    const forcePushKey = 'force_push_version';
+    const lastPush = localStorage.getItem(forcePushKey);
+    const needsForcePush = lastPush !== String(FORCE_PUSH_VERSION);
+
+    if (needsForcePush) {
+      // Push localStorage to DB to restore any lost data
+      const current = localStorage.getItem(key);
+      if (current !== null) {
+        try {
+          const value = JSON.parse(current);
+          saveToDb(key, value).catch(() => {});
+        } catch {}
+      }
+      // Mark as done after all hooks have run (set in a timeout so all keys push)
+      setTimeout(() => localStorage.setItem(forcePushKey, String(FORCE_PUSH_VERSION)), 2000);
+      ready.current = true;
+      return;
+    }
 
     fetch(`/api/data/${key}`)
       .then((res) => res.ok ? res.json() : null)
@@ -61,7 +81,6 @@ export function usePersistedState(key, defaultValue) {
           setState(serverData);
           try { localStorage.setItem(key, JSON.stringify(serverData)); } catch {}
         } else {
-          // DB empty — seed it with current value
           const current = localStorage.getItem(key);
           const value = current !== null ? JSON.parse(current) : defaultValue;
           saveToDb(key, value).catch(() => {});
