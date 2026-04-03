@@ -155,7 +155,14 @@ function computeSitterDays() {
 }
 
 function Schedule({ sitterCoverage, setSitterCoverage }) {
-  const today = new Date();
+  // Live-updating current date — refreshes at midnight
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1) - now;
+    const timer = setTimeout(() => setNow(new Date()), msUntilMidnight + 1000);
+    return () => clearTimeout(timer);
+  }, [now]);
+  const today = now;
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
 
@@ -317,7 +324,7 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
           </div>
         </div>
         <div className="card" style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Days Left This Stretch</div>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 4 }}>Days Left This Hitch</div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>{daysLeft}</div>
         </div>
         <div className="card" style={{ textAlign: 'center' }}>
