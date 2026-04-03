@@ -66,22 +66,44 @@ export function usePersistedState(key, defaultValue) {
       .finally(() => { ready.current = true; });
   }, []);
 
+  const pendingRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+
   // On change: localStorage + debounced DB save
   useEffect(() => {
     try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
     if (!ready.current) return;
 
+    pendingRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       fetch(`/api/data/${key}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(state),
-      }).catch(() => {});
+      }).then(() => { pendingRef.current = false; }).catch(() => {});
     }, DEBOUNCE_MS);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [key, state]);
+
+  // Flush pending saves when tab closes or navigates away
+  useEffect(() => {
+    const flush = () => {
+      if (pendingRef.current && ready.current) {
+        const body = JSON.stringify(stateRef.current);
+        // sendBeacon is reliable even during page unload
+        navigator.sendBeacon(`/api/data/${key}`, new Blob([body], { type: 'application/json' }));
+        pendingRef.current = false;
+      }
+    };
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') flush();
+    });
+    return () => window.removeEventListener('beforeunload', flush);
+  }, [key]);
 
   return [state, setState];
 }

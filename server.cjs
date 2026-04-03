@@ -115,8 +115,8 @@ app.get('/api/data/:key', async (req, res) => {
   }
 });
 
-// PUT /api/data/:key — upsert
-app.put('/api/data/:key', async (req, res) => {
+// PUT or POST /api/data/:key — upsert (POST needed for sendBeacon on page close)
+const upsertData = async (req, res) => {
   try {
     await pool.query(
       `INSERT INTO budget_data (key, value, updated_at)
@@ -129,7 +129,9 @@ app.put('/api/data/:key', async (req, res) => {
     console.error('PUT /api/data/:key error:', err);
     res.status(500).json({ error: 'db error' });
   }
-});
+};
+app.put('/api/data/:key', upsertData);
+app.post('/api/data/:key', upsertData);
 
 // POST /api/chat — OpenAI chat with budget context
 app.post('/api/chat', async (req, res) => {
