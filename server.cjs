@@ -11,7 +11,8 @@ const PORT = process.env.PORT || 3000;
 // Trust Heroku's reverse proxy so secure cookies work
 app.set('trust proxy', 1);
 
-app.use(express.json({ limit: '5mb' }));
+app.use(express.json({ limit: '5mb', strict: false }));
+app.use(express.text({ limit: '5mb', type: 'text/plain' }));
 
 // Session middleware — stored in PostgreSQL so sessions survive dyno restarts
 app.use(session({
