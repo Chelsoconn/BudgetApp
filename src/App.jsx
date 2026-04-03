@@ -183,13 +183,18 @@ function AuthenticatedApp({ onLogout }) {
 
       <main className="main">
         <UndoRedo onRestore={(key, data) => {
+          console.log('UNDO RESTORE:', key, typeof data, Array.isArray(data) ? data.length + ' items' : '');
           const setters = {
             budget_bills: setBills,
             budget_debts: setDebts,
             budget_months: setMonths,
             budget_paycheck_config: setPaycheckConfig,
           };
-          if (setters[key]) setters[key](data);
+          if (setters[key]) {
+            setters[key](data);
+            // Also update localStorage immediately so it stays in sync
+            try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
+          }
         }} />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
