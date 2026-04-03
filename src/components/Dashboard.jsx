@@ -120,12 +120,19 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
       )}
 
       {/* Top stats */}
-      <div className="grid-3 mb-4">
-        <div className="stat-card">
-          <div className="stat-label">Monthly Bills</div>
-          <div className="stat-value">{fmt(totalBills)}</div>
-          <div className="stat-sub">{bills.length} recurring expenses</div>
+      <div className="grid-2 mb-4">
+        <div className="stat-card" style={{ borderColor: endOf2026 >= 0 ? 'var(--green)' : 'var(--red)', borderWidth: 1 }}>
+          <div className="stat-label">End of 2026</div>
+          <div className={`stat-value ${endOf2026 >= 0 ? 'text-green' : 'text-red'}`}>{fmt(endOf2026)}</div>
+          <div className="stat-sub">December 2026 final</div>
         </div>
+        <div className="stat-card" style={{ borderColor: endOf2027 >= 0 ? 'var(--green)' : 'var(--red)', borderWidth: 1 }}>
+          <div className="stat-label">End of 2027</div>
+          <div className={`stat-value ${endOf2027 >= 0 ? 'text-green' : 'text-red'}`}>{fmt(endOf2027)}</div>
+          <div className="stat-sub">December 2027 final</div>
+        </div>
+      </div>
+      <div className="grid-2 mb-4">
         <div className="stat-card">
           <div className="stat-label">{currentMonth?.name} {currentMonth?.year} Final</div>
           <div className={`stat-value ${currentFin.monthFinal >= 0 ? 'text-green' : 'text-red'}`}>
@@ -171,6 +178,13 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
             );
           })}
         </div>
+      </div>
+
+      {/* Monthly Bills stat */}
+      <div className="stat-card mb-4">
+        <div className="stat-label">Monthly Bills</div>
+        <div className="stat-value">{fmt(totalBills)}</div>
+        <div className="stat-sub">{bills.length} recurring expenses</div>
       </div>
 
       <div className="grid-2 mb-4">
@@ -230,23 +244,6 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
         </div>
       </div>
 
-      {/* End of year milestones */}
-      <div className="grid-2 mb-4">
-        <div className="stat-card" style={{ borderColor: endOf2026 >= 0 ? 'var(--green)' : 'var(--red)', borderWidth: 1 }}>
-          <div className="stat-label">End of 2026</div>
-          <div className={`stat-value ${endOf2026 >= 0 ? 'text-green' : 'text-red'}`}>
-            {fmt(endOf2026)}
-          </div>
-          <div className="stat-sub">December 2026 final</div>
-        </div>
-        <div className="stat-card" style={{ borderColor: endOf2027 >= 0 ? 'var(--green)' : 'var(--red)', borderWidth: 1 }}>
-          <div className="stat-label">End of 2027</div>
-          <div className={`stat-value ${endOf2027 >= 0 ? 'text-green' : 'text-red'}`}>
-            {fmt(endOf2027)}
-          </div>
-          <div className="stat-sub">December 2027 final</div>
-        </div>
-      </div>
 
       {/* Yearly Lifestyle Cost Analysis */}
       {(() => {
