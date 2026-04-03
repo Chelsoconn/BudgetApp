@@ -1,7 +1,7 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 const DATA_VERSION = 9;
-const DEBOUNCE_MS = 800;
+const DEBOUNCE_MS = 400;
 
 // Version check — runs once on page load
 if (typeof window !== 'undefined') {
@@ -13,13 +13,21 @@ if (typeof window !== 'undefined') {
     localStorage.removeItem('budget_paycheck_config');
     localStorage.removeItem('budget_playgrounds');
     localStorage.setItem('budget_data_version', String(DATA_VERSION));
-    // Clear stale DB keys
     fetch('/api/data/version', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ version: DATA_VERSION }),
     }).catch(() => {});
   }
+}
+
+// Save to DB — shared helper
+function saveToDb(key, value) {
+  return fetch(`/api/data/${key}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(value),
+  });
 }
 
 export function usePersistedState(key, defaultValue) {
@@ -35,42 +43,35 @@ export function usePersistedState(key, defaultValue) {
   const debounceRef = useRef(null);
   const ready = useRef(false);
   const hasLoaded = useRef(false);
+  const pendingRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state;
+  const keyRef = useRef(key);
+  keyRef.current = key;
 
-  // On mount: load from DB or seed if empty
+  // On mount: DB is source of truth — load from it
   useEffect(() => {
     if (hasLoaded.current) return;
     hasLoaded.current = true;
 
     fetch(`/api/data/${key}`)
-      .then((res) => {
-        if (res.ok) return res.json();
-        return null;
-      })
+      .then((res) => res.ok ? res.json() : null)
       .then((serverData) => {
         if (serverData !== null) {
-          // DB has data — use it
           setState(serverData);
           try { localStorage.setItem(key, JSON.stringify(serverData)); } catch {}
         } else {
-          // DB empty — push current state (defaults) to DB
+          // DB empty — seed it with current value
           const current = localStorage.getItem(key);
-          const toSave = current !== null ? current : JSON.stringify(defaultValue);
-          fetch(`/api/data/${key}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: toSave,
-          }).catch(() => {});
+          const value = current !== null ? JSON.parse(current) : defaultValue;
+          saveToDb(key, value).catch(() => {});
         }
       })
       .catch(() => {})
       .finally(() => { ready.current = true; });
   }, []);
 
-  const pendingRef = useRef(false);
-  const stateRef = useRef(state);
-  stateRef.current = state;
-
-  // On change: localStorage + debounced DB save
+  // On change: save to localStorage immediately, DB after debounce
   useEffect(() => {
     try { localStorage.setItem(key, JSON.stringify(state)); } catch {}
     if (!ready.current) return;
@@ -78,32 +79,34 @@ export function usePersistedState(key, defaultValue) {
     pendingRef.current = true;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetch(`/api/data/${key}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(state),
-      }).then(() => { pendingRef.current = false; }).catch(() => {});
+      saveToDb(key, state)
+        .then(() => { pendingRef.current = false; })
+        .catch(() => {});
     }, DEBOUNCE_MS);
 
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [key, state]);
 
-  // Flush pending saves when tab closes or navigates away
+  // Flush pending saves on tab close, hide, or navigate away
   useEffect(() => {
     const flush = () => {
       if (pendingRef.current && ready.current) {
         const body = JSON.stringify(stateRef.current);
-        // sendBeacon is reliable even during page unload
-        navigator.sendBeacon(`/api/data/${key}`, new Blob([body], { type: 'application/json' }));
+        navigator.sendBeacon(
+          `/api/data/${keyRef.current}`,
+          new Blob([body], { type: 'application/json' })
+        );
         pendingRef.current = false;
       }
     };
+    const onVisChange = () => { if (document.visibilityState === 'hidden') flush(); };
     window.addEventListener('beforeunload', flush);
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') flush();
-    });
-    return () => window.removeEventListener('beforeunload', flush);
-  }, [key]);
+    document.addEventListener('visibilitychange', onVisChange);
+    return () => {
+      window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', onVisChange);
+    };
+  }, []);
 
   return [state, setState];
 }
