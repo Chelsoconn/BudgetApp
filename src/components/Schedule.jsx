@@ -397,7 +397,7 @@ function Schedule({ sitterCoverage, setSitterCoverage }) {
           <div>
             <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>Sitter Coverage Needed</h3>
             <p className="subtitle" style={{ margin: '4px 0 0' }}>
-              Days both parents are working &amp; kids are off or half day
+              Days were both working and the kids are off.
             </p>
           </div>
           <div style={{ display: 'flex', gap: 12, fontSize: 13 }}>
