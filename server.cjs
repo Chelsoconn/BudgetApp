@@ -8,6 +8,9 @@ const { pool, initDb } = require('./db.cjs');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Heroku's reverse proxy so secure cookies work
+app.set('trust proxy', 1);
+
 app.use(express.json({ limit: '5mb' }));
 
 // Session middleware — stored in PostgreSQL so sessions survive dyno restarts
