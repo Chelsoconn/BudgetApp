@@ -703,14 +703,22 @@ async function pushHistory(dataKey) {
     skipHistoryKeys.delete(dataKey);
     return;
   }
-  // Save current state as a snapshot before it changes
   const loader = loaders[dataKey];
   if (!loader) return;
   try {
     const current = await loader();
+    const currentJson = JSON.stringify(current);
+
+    // Don't push if identical to the most recent snapshot
+    const { rows: last } = await pool.query(
+      'SELECT snapshot FROM change_history WHERE data_key = $1 ORDER BY id DESC LIMIT 1',
+      [dataKey]
+    );
+    if (last.length > 0 && JSON.stringify(last[0].snapshot) === currentJson) return;
+
     await pool.query(
       'INSERT INTO change_history (data_key, snapshot) VALUES ($1, $2)',
-      [dataKey, JSON.stringify(current)]
+      [dataKey, currentJson]
     );
     // Keep only last 20
     await pool.query(`
