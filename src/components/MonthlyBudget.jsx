@@ -47,11 +47,11 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
     } catch { return undefined; }
   };
 
-  // Sync bank/amex inputs when switching months
+  // Sync bank/amex inputs when switching months or when data changes (undo)
   useEffect(() => {
     setBankInput(String(month?.bankBalance ?? ''));
     setAmexInput(String(month?.amexBalance ?? ''));
-  }, [selectedIdx]);
+  }, [selectedIdx, month?.bankBalance, month?.amexBalance]);
 
   const totalBills = bills.reduce((s, b) => s + b.amount, 0);
   const month = months[selectedIdx];
