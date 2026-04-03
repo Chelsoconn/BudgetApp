@@ -3,7 +3,7 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const crypto = require('crypto');
 const path = require('path');
-const { pool, initDb, loaders, savers } = require('./db.cjs');
+const { pool, initDb, loaders, savers, pushHistory, undo, redo, getHistoryCounts } = require('./db.cjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -86,15 +86,15 @@ app.get('/api/data/:key', async (req, res) => {
   }
 });
 
-// PUT or POST /api/data/:key — save to normalized tables
+// PUT or POST /api/data/:key — save to normalized tables (with history)
 const upsertData = async (req, res) => {
   const key = req.params.key;
   try {
     if (savers[key]) {
+      await pushHistory(key); // snapshot before change
       await savers[key](req.body);
       return res.json({ ok: true });
     }
-    // Fallback to budget_data for playgrounds etc.
     await pool.query(
       `INSERT INTO budget_data (key, value, updated_at)
        VALUES ($1, $2, NOW())
@@ -109,6 +109,38 @@ const upsertData = async (req, res) => {
 };
 app.put('/api/data/:key', upsertData);
 app.post('/api/data/:key', upsertData);
+
+// Undo/Redo endpoints
+app.post('/api/undo/:key', async (req, res) => {
+  try {
+    const snapshot = await undo(req.params.key);
+    if (snapshot === null) return res.status(404).json({ error: 'Nothing to undo' });
+    res.json({ data: snapshot });
+  } catch (err) {
+    console.error('Undo error:', err);
+    res.status(500).json({ error: 'Undo failed' });
+  }
+});
+
+app.post('/api/redo/:key', async (req, res) => {
+  try {
+    const snapshot = await redo(req.params.key);
+    if (snapshot === null) return res.status(404).json({ error: 'Nothing to redo' });
+    res.json({ data: snapshot });
+  } catch (err) {
+    console.error('Redo error:', err);
+    res.status(500).json({ error: 'Redo failed' });
+  }
+});
+
+app.get('/api/history/:key', async (req, res) => {
+  try {
+    const counts = await getHistoryCounts(req.params.key);
+    res.json(counts);
+  } catch (err) {
+    res.status(500).json({ error: 'History check failed' });
+  }
+});
 
 // POST /api/chat — OpenAI chat with budget context
 app.post('/api/chat', async (req, res) => {

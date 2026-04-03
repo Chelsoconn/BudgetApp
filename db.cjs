@@ -149,6 +149,29 @@ async function initDb() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS change_history (
+      id SERIAL PRIMARY KEY,
+      data_key TEXT NOT NULL,
+      snapshot JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  // Index for fast lookups by key
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS idx_change_history_key ON change_history(data_key, id DESC)
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS redo_history (
+      id SERIAL PRIMARY KEY,
+      data_key TEXT NOT NULL,
+      snapshot JSONB NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS playgrounds (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -670,4 +693,98 @@ const savers = {
   budget_playgrounds: savePlaygrounds,
 };
 
-module.exports = { pool, initDb, loaders, savers };
+// ── History helpers ──
+
+async function pushHistory(dataKey) {
+  // Save current state as a snapshot before it changes
+  const loader = loaders[dataKey];
+  if (!loader) return;
+  try {
+    const current = await loader();
+    await pool.query(
+      'INSERT INTO change_history (data_key, snapshot) VALUES ($1, $2)',
+      [dataKey, JSON.stringify(current)]
+    );
+    // Keep only last 20
+    await pool.query(`
+      DELETE FROM change_history WHERE id NOT IN (
+        SELECT id FROM change_history WHERE data_key = $1 ORDER BY id DESC LIMIT 20
+      ) AND data_key = $1
+    `, [dataKey]);
+    // Clear redo stack when new change is made
+    await pool.query('DELETE FROM redo_history WHERE data_key = $1', [dataKey]);
+  } catch (e) {
+    console.error('pushHistory error:', e.message);
+  }
+}
+
+async function undo(dataKey) {
+  // Pop last snapshot from history, push current to redo, restore snapshot
+  const loader = loaders[dataKey];
+  const saver = savers[dataKey];
+  if (!loader || !saver) return null;
+
+  const { rows } = await pool.query(
+    'SELECT id, snapshot FROM change_history WHERE data_key = $1 ORDER BY id DESC LIMIT 1',
+    [dataKey]
+  );
+  if (rows.length === 0) return null;
+
+  // Save current to redo
+  const current = await loader();
+  await pool.query(
+    'INSERT INTO redo_history (data_key, snapshot) VALUES ($1, $2)',
+    [dataKey, JSON.stringify(current)]
+  );
+  // Keep only last 20 redo
+  await pool.query(`
+    DELETE FROM redo_history WHERE id NOT IN (
+      SELECT id FROM redo_history WHERE data_key = $1 ORDER BY id DESC LIMIT 20
+    ) AND data_key = $1
+  `, [dataKey]);
+
+  // Restore the snapshot
+  const snapshot = rows[0].snapshot;
+  await saver(snapshot);
+
+  // Remove used history entry
+  await pool.query('DELETE FROM change_history WHERE id = $1', [rows[0].id]);
+
+  return snapshot;
+}
+
+async function redo(dataKey) {
+  const loader = loaders[dataKey];
+  const saver = savers[dataKey];
+  if (!loader || !saver) return null;
+
+  const { rows } = await pool.query(
+    'SELECT id, snapshot FROM redo_history WHERE data_key = $1 ORDER BY id DESC LIMIT 1',
+    [dataKey]
+  );
+  if (rows.length === 0) return null;
+
+  // Save current to history
+  const current = await loader();
+  await pool.query(
+    'INSERT INTO change_history (data_key, snapshot) VALUES ($1, $2)',
+    [dataKey, JSON.stringify(current)]
+  );
+
+  // Restore redo snapshot
+  const snapshot = rows[0].snapshot;
+  await saver(snapshot);
+
+  // Remove used redo entry
+  await pool.query('DELETE FROM redo_history WHERE id = $1', [rows[0].id]);
+
+  return snapshot;
+}
+
+async function getHistoryCounts(dataKey) {
+  const { rows: [h] } = await pool.query('SELECT COUNT(*) as c FROM change_history WHERE data_key = $1', [dataKey]);
+  const { rows: [r] } = await pool.query('SELECT COUNT(*) as c FROM redo_history WHERE data_key = $1', [dataKey]);
+  return { undoCount: parseInt(h.c), redoCount: parseInt(r.c) };
+}
+
+module.exports = { pool, initDb, loaders, savers, pushHistory, undo, redo, getHistoryCounts };

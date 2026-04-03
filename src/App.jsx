@@ -13,6 +13,7 @@ import Chat from './components/Chat';
 import Schedule from './components/Schedule';
 import BusinessExpenses from './components/BusinessExpenses';
 import Login from './components/Login';
+import UndoRedo from './components/UndoRedo';
 
 // Inline SVG icons
 const icons = {
@@ -206,6 +207,15 @@ function AuthenticatedApp({ onLogout }) {
           } />
         </Routes>
       </main>
+      <UndoRedo onRestore={(key, data) => {
+        const setters = {
+          budget_bills: setBills,
+          budget_debts: setDebts,
+          budget_months: setMonths,
+          budget_paycheck_config: setPaycheckConfig,
+        };
+        if (setters[key]) setters[key](data);
+      }} />
     </div>
   );
 }
