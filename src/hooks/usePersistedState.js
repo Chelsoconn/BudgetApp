@@ -135,5 +135,14 @@ export function usePersistedState(key, defaultValue) {
     }
   }, [key]);
 
-  return [state, setState, snapshot];
+  // Cancel any pending debounced save (used by undo to prevent overwrite)
+  const cancelPending = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+      pendingRef.current = false;
+    }
+  }, []);
+
+  return [state, setState, snapshot, cancelPending];
 }

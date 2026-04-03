@@ -52,10 +52,10 @@ function App() {
 }
 
 function AuthenticatedApp({ onLogout }) {
-  const [bills, setBillsRaw, snapshotBills] = usePersistedState('budget_bills', initialBills);
-  const [debts, setDebtsRaw, snapshotDebts] = usePersistedState('budget_debts', initialDebts);
-  const [months, setMonthsRaw, snapshotMonths] = usePersistedState('budget_months', initialMonths);
-  const [paycheckConfig, setPaycheckConfigRaw, snapshotPaycheck] = usePersistedState('budget_paycheck_config', {
+  const [bills, setBillsRaw, snapshotBills, cancelBills] = usePersistedState('budget_bills', initialBills);
+  const [debts, setDebtsRaw, snapshotDebts, cancelDebts] = usePersistedState('budget_debts', initialDebts);
+  const [months, setMonthsRaw, snapshotMonths, cancelMonths] = usePersistedState('budget_months', initialMonths);
+  const [paycheckConfig, setPaycheckConfigRaw, snapshotPaycheck, cancelPaycheck] = usePersistedState('budget_paycheck_config', {
     brandonSmall,
     brandonBig,
     chelseaPay: chelseaPaycheck,
@@ -189,6 +189,12 @@ function AuthenticatedApp({ onLogout }) {
 
       <main className="main">
         <UndoRedo onRestore={(key, data) => {
+          // Cancel ALL pending saves first to prevent overwrites
+          cancelBills();
+          cancelDebts();
+          cancelMonths();
+          cancelPaycheck();
+          // Set new state
           const setters = {
             budget_bills: setBillsRaw,
             budget_debts: setDebtsRaw,
