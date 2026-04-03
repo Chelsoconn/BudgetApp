@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import './App.css';
 import { initialBills, initialDebts, initialMonths, brandonSmall, brandonBig, chelseaPaycheck } from './data/budgetData';
-import { usePersistedState } from './hooks/usePersistedState';
+import { usePersistedState, skipNextHistory } from './hooks/usePersistedState';
 import Dashboard from './components/Dashboard';
 import Bills from './components/Bills';
 import MonthlyBudget from './components/MonthlyBudget';
@@ -189,7 +189,10 @@ function AuthenticatedApp({ onLogout }) {
             budget_months: setMonths,
             budget_paycheck_config: setPaycheckConfig,
           };
-          if (setters[key]) setters[key](data);
+          if (setters[key]) {
+            skipNextHistory();
+            setters[key](data);
+          }
         }} />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />

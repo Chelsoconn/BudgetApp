@@ -89,9 +89,10 @@ app.get('/api/data/:key', async (req, res) => {
 // PUT or POST /api/data/:key — save to normalized tables (with history)
 const upsertData = async (req, res) => {
   const key = req.params.key;
+  const skipHistory = req.query.skipHistory === '1';
   try {
     if (savers[key]) {
-      await pushHistory(key); // snapshot before change
+      if (!skipHistory) await pushHistory(key);
       await savers[key](req.body);
       return res.json({ ok: true });
     }
@@ -139,6 +140,47 @@ app.get('/api/history/:key', async (req, res) => {
     res.json(counts);
   } catch (err) {
     res.status(500).json({ error: 'History check failed' });
+  }
+});
+
+// Summary: total undo/redo across all keys
+app.get('/api/history-summary', async (req, res) => {
+  try {
+    const { rows: [u] } = await pool.query('SELECT COUNT(*) as c FROM change_history');
+    const { rows: [r] } = await pool.query('SELECT COUNT(*) as c FROM redo_history');
+    res.json({ undoCount: parseInt(u.c), redoCount: parseInt(r.c) });
+  } catch (err) {
+    res.status(500).json({ error: 'History check failed' });
+  }
+});
+
+// Undo the most recent change across all keys
+app.post('/api/undo-latest', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, data_key FROM change_history ORDER BY id DESC LIMIT 1');
+    if (rows.length === 0) return res.status(404).json({ error: 'Nothing to undo' });
+    const key = rows[0].data_key;
+    const snapshot = await undo(key);
+    if (snapshot === null) return res.status(404).json({ error: 'Nothing to undo' });
+    res.json({ key, data: snapshot });
+  } catch (err) {
+    console.error('Undo-latest error:', err);
+    res.status(500).json({ error: 'Undo failed' });
+  }
+});
+
+// Redo the most recent undone change across all keys
+app.post('/api/redo-latest', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, data_key FROM redo_history ORDER BY id DESC LIMIT 1');
+    if (rows.length === 0) return res.status(404).json({ error: 'Nothing to redo' });
+    const key = rows[0].data_key;
+    const snapshot = await redo(key);
+    if (snapshot === null) return res.status(404).json({ error: 'Nothing to redo' });
+    res.json({ key, data: snapshot });
+  } catch (err) {
+    console.error('Redo-latest error:', err);
+    res.status(500).json({ error: 'Redo failed' });
   }
 });
 

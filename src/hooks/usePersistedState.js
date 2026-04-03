@@ -23,13 +23,18 @@ if (typeof window !== 'undefined') {
 }
 
 // Save to DB — shared helper
-function saveToDb(key, value) {
-  return fetch(`/api/data/${key}`, {
+function saveToDb(key, value, skipHistory = false) {
+  const url = skipHistory ? `/api/data/${key}?skipHistory=1` : `/api/data/${key}`;
+  return fetch(url, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(value),
   });
 }
+
+// Global flag to skip history for the next save (set by undo/redo)
+let _skipNextHistory = false;
+export function skipNextHistory() { _skipNextHistory = true; }
 
 export function usePersistedState(key, defaultValue) {
   const [state, setState] = useState(() => {
@@ -96,9 +101,11 @@ export function usePersistedState(key, defaultValue) {
     if (!ready.current) return;
 
     pendingRef.current = true;
+    const shouldSkip = _skipNextHistory;
+    _skipNextHistory = false;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      saveToDb(key, state)
+      saveToDb(key, state, shouldSkip)
         .then(() => { pendingRef.current = false; })
         .catch(() => {});
     }, DEBOUNCE_MS);
