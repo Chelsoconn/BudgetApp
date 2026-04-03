@@ -10,31 +10,55 @@
 .login-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 40px 32px;
+  border-radius: 20px;
+  padding: 48px 36px 40px;
   width: 100%;
-  max-width: 360px;
-  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+  max-width: 380px;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.15);
+  animation: popIn 0.3s ease;
 }
 .login-header {
   text-align: center;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
 }
 .login-header h1 {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
   margin: 0;
 }
 .login-header p {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
-  margin: 4px 0 0;
+  margin: 6px 0 0;
+  font-style: italic;
 }
 .login-error {
   color: var(--danger);
   font-size: 13px;
   margin-bottom: 12px;
   text-align: center;
+}
+
+/* Logout */
+.logout-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-radius: 8px;
+  border: 1px solid rgba(239,68,68,0.25);
+  background: rgba(239,68,68,0.08);
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.logout-btn:hover {
+  background: rgba(239,68,68,0.15);
+  border-color: rgba(239,68,68,0.4);
 }
 
 /* Dashboard note */

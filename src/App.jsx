@@ -169,12 +169,12 @@ function AuthenticatedApp({ onLogout }) {
             <span>Ask AI</span>
           </NavLink>
         </div>
-        <div style={{ marginTop: 'auto', padding: '12px' }}>
+        <div style={{ marginTop: 'auto', padding: '12px 8px' }}>
           <button
-            className="btn-ghost"
+            className="logout-btn"
             onClick={async () => { await fetch('/api/logout', { method: 'POST' }); onLogout(); }}
-            style={{ width: '100%', fontSize: 12, opacity: 0.6 }}
           >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Log Out
           </button>
         </div>
