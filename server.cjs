@@ -86,13 +86,21 @@ app.get('/api/data/:key', async (req, res) => {
   }
 });
 
-// PUT or POST /api/data/:key — save to normalized tables (with history)
+// POST /api/snapshot/:key — explicitly save a snapshot before making changes
+app.post('/api/snapshot/:key', async (req, res) => {
+  try {
+    await pushHistory(req.params.key);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Snapshot failed' });
+  }
+});
+
+// PUT or POST /api/data/:key — save to normalized tables (NO auto-history)
 const upsertData = async (req, res) => {
   const key = req.params.key;
-  const skipHistory = req.query.skipHistory === '1';
   try {
     if (savers[key]) {
-      if (!skipHistory) await pushHistory(key);
       await savers[key](req.body);
       return res.json({ ok: true });
     }

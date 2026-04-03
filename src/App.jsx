@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import './App.css';
 import { initialBills, initialDebts, initialMonths, brandonSmall, brandonBig, chelseaPaycheck } from './data/budgetData';
@@ -52,14 +52,20 @@ function App() {
 }
 
 function AuthenticatedApp({ onLogout }) {
-  const [bills, setBills] = usePersistedState('budget_bills', initialBills);
-  const [debts, setDebts] = usePersistedState('budget_debts', initialDebts);
-  const [months, setMonths] = usePersistedState('budget_months', initialMonths);
-  const [paycheckConfig, setPaycheckConfig] = usePersistedState('budget_paycheck_config', {
+  const [bills, setBillsRaw, snapshotBills] = usePersistedState('budget_bills', initialBills);
+  const [debts, setDebtsRaw, snapshotDebts] = usePersistedState('budget_debts', initialDebts);
+  const [months, setMonthsRaw, snapshotMonths] = usePersistedState('budget_months', initialMonths);
+  const [paycheckConfig, setPaycheckConfigRaw, snapshotPaycheck] = usePersistedState('budget_paycheck_config', {
     brandonSmall,
     brandonBig,
     chelseaPay: chelseaPaycheck,
   });
+
+  // Wrap setters to auto-snapshot before changes
+  const setBills = useCallback((v) => { snapshotBills(); setBillsRaw(v); }, [snapshotBills, setBillsRaw]);
+  const setDebts = useCallback((v) => { snapshotDebts(); setDebtsRaw(v); }, [snapshotDebts, setDebtsRaw]);
+  const setMonths = useCallback((v) => { snapshotMonths(); setMonthsRaw(v); }, [snapshotMonths, setMonthsRaw]);
+  const setPaycheckConfig = useCallback((v) => { snapshotPaycheck(); setPaycheckConfigRaw(v); }, [snapshotPaycheck, setPaycheckConfigRaw]);
   const [playgrounds, setPlaygrounds] = usePersistedState('budget_playgrounds', []);
   const [sitterCoverage, setSitterCoverage] = usePersistedState('sitter_coverage', {});
   const [chatMessages, setChatMessages] = useState([]);
@@ -184,10 +190,10 @@ function AuthenticatedApp({ onLogout }) {
       <main className="main">
         <UndoRedo onRestore={(key, data) => {
           const setters = {
-            budget_bills: setBills,
-            budget_debts: setDebts,
-            budget_months: setMonths,
-            budget_paycheck_config: setPaycheckConfig,
+            budget_bills: setBillsRaw,
+            budget_debts: setDebtsRaw,
+            budget_months: setMonthsRaw,
+            budget_paycheck_config: setPaycheckConfigRaw,
           };
           if (setters[key]) {
             setters[key](data);

@@ -128,5 +128,12 @@ export function usePersistedState(key, defaultValue) {
     };
   }, []);
 
-  return [state, setState];
+  // Call before making a user-initiated change to enable undo
+  const snapshot = useCallback(() => {
+    if (ready.current) {
+      fetch(`/api/snapshot/${key}`, { method: 'POST' }).catch(() => {});
+    }
+  }, [key]);
+
+  return [state, setState, snapshot];
 }
