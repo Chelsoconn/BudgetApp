@@ -135,8 +135,20 @@ async function initDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS playgrounds (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      data JSONB NOT NULL DEFAULT '{}'
+    )
+  `);
+
   // Migrate from old JSON blobs if normalized tables are empty
   await migrateIfNeeded();
+
+  // Clean up old budget_data blobs now that everything is normalized
+  await pool.query("DELETE FROM budget_data WHERE key NOT IN ('budget_data_version')");
 }
 
 async function migrateIfNeeded() {
@@ -421,6 +433,22 @@ async function saveBizExpenses(biz) {
   }
 }
 
+async function loadPlaygrounds() {
+  const { rows } = await pool.query('SELECT * FROM playgrounds ORDER BY created_at');
+  return rows.map(r => ({ id: r.id, name: r.name, createdAt: r.created_at, ...r.data }));
+}
+
+async function savePlaygrounds(playgrounds) {
+  await pool.query('DELETE FROM playgrounds');
+  for (const pg of (playgrounds || [])) {
+    const { id, name, createdAt, ...data } = pg;
+    await pool.query(
+      'INSERT INTO playgrounds (id, name, created_at, data) VALUES ($1, $2, $3, $4)',
+      [id, name, createdAt || new Date().toISOString(), data]
+    );
+  }
+}
+
 // Key-to-loader/saver mapping
 const loaders = {
   budget_bills: loadBills,
@@ -430,6 +458,7 @@ const loaders = {
   dash_note: loadDashNote,
   sitter_coverage: loadSitterCoverage,
   biz_expenses: loadBizExpenses,
+  budget_playgrounds: loadPlaygrounds,
 };
 
 const savers = {
@@ -440,6 +469,7 @@ const savers = {
   dash_note: saveDashNote,
   sitter_coverage: saveSitterCoverage,
   biz_expenses: saveBizExpenses,
+  budget_playgrounds: savePlaygrounds,
 };
 
 module.exports = { pool, initDb, loaders, savers };
