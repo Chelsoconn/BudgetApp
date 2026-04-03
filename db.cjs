@@ -368,14 +368,12 @@ async function migrateIfNeeded() {
 
       for (const p of (m.paychecks || [])) {
         const person = p.person || 'Brandon';
-        const payType = p.type || 'small';
-        const tId = tmplMap[`${person}_${payType}`];
-        if (tId) {
-          await pool.query(
-            'INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
-            [mid, tId, p.date || '', p.amount]
-          );
-        }
+        const payType = person === 'Chelsea' ? 'regular' : (p.type || 'small');
+        const tId = await getOrCreateTemplate(person, payType, tmplMap);
+        await pool.query(
+          'INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
+          [mid, tId, p.date || '', p.amount]
+        );
       }
 
       for (const e of (m.expenses || [])) {
@@ -544,6 +542,18 @@ async function saveDebts(debts) {
   }
 }
 
+async function getOrCreateTemplate(person, payType, tmplMap) {
+  const key = `${person}_${payType}`;
+  if (tmplMap[key]) return tmplMap[key];
+  // Auto-create missing template
+  const { rows: [row] } = await pool.query(
+    'INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ($1, $2, 0) ON CONFLICT (person, pay_type) DO UPDATE SET person=$1 RETURNING id',
+    [person, payType]
+  );
+  tmplMap[key] = row.id;
+  return row.id;
+}
+
 async function saveMonths(months) {
   // Build template lookup: person+pay_type -> template_id
   const { rows: tmplRows } = await pool.query('SELECT id, person, pay_type FROM paycheck_templates');
@@ -565,12 +575,10 @@ async function saveMonths(months) {
 
     for (const p of (m.paychecks || [])) {
       const person = p.person || 'Brandon';
-      const payType = p.type || 'small';
-      const tId = tmplMap[`${person}_${payType}`];
-      if (tId) {
-        await pool.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
-          [mid, tId, p.date || '', p.amount]);
-      }
+      const payType = person === 'Chelsea' ? 'regular' : (p.type || 'small');
+      const tId = await getOrCreateTemplate(person, payType, tmplMap);
+      await pool.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
+        [mid, tId, p.date || '', p.amount]);
     }
     for (const e of (m.expenses || [])) {
       await pool.query('INSERT INTO month_expenses (month_id, label, amount) VALUES ($1, $2, $3)', [mid, e.label, e.amount]);
