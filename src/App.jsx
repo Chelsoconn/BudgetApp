@@ -12,6 +12,7 @@ import Playground from './components/Playground';
 import Chat from './components/Chat';
 import Schedule from './components/Schedule';
 import BusinessExpenses from './components/BusinessExpenses';
+import Login from './components/Login';
 
 // Inline SVG icons
 const icons = {
@@ -37,6 +38,19 @@ const NAV_BUDGET = [
 ];
 
 function App() {
+  const [authed, setAuthed] = useState(null);
+
+  useEffect(() => {
+    fetch('/api/auth-check').then(r => r.json()).then(d => setAuthed(d.authenticated)).catch(() => setAuthed(false));
+  }, []);
+
+  if (authed === null) return <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Loading...</div>;
+  if (!authed) return <Login onLogin={() => setAuthed(true)} />;
+
+  return <AuthenticatedApp onLogout={() => setAuthed(false)} />;
+}
+
+function AuthenticatedApp({ onLogout }) {
   const [bills, setBills] = usePersistedState('budget_bills', initialBills);
   const [debts, setDebts] = usePersistedState('budget_debts', initialDebts);
   const [months, setMonths] = usePersistedState('budget_months', initialMonths);
@@ -154,6 +168,15 @@ function App() {
             <span className="nav-icon">{icons.chat}</span>
             <span>Ask AI</span>
           </NavLink>
+        </div>
+        <div style={{ marginTop: 'auto', padding: '12px' }}>
+          <button
+            className="btn-ghost"
+            onClick={async () => { await fetch('/api/logout', { method: 'POST' }); onLogout(); }}
+            style={{ width: '100%', fontSize: 12, opacity: 0.6 }}
+          >
+            Log Out
+          </button>
         </div>
       </nav>
 

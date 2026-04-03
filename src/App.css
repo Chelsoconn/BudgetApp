@@ -1,3 +1,42 @@
+/* Login */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 20px;
+}
+.login-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 40px 32px;
+  width: 100%;
+  max-width: 360px;
+  box-shadow: 0 8px 30px rgba(0,0,0,0.12);
+}
+.login-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+.login-header h1 {
+  font-size: 22px;
+  font-weight: 800;
+  margin: 0;
+}
+.login-header p {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 4px 0 0;
+}
+.login-error {
+  color: var(--danger);
+  font-size: 13px;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
 /* Dashboard note */
 .dash-note {
   background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(168,85,247,0.08));

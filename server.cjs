@@ -1,4 +1,6 @@
 const express = require('express');
+const session = require('express-session');
+const crypto = require('crypto');
 const path = require('path');
 const { pool, initDb } = require('./db.cjs');
 
@@ -6,10 +8,51 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '5mb' }));
+
+// Session middleware
+app.use(session({
+  secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
+  },
+}));
+
+// Auth endpoints (before auth middleware)
+app.post('/api/login', (req, res) => {
+  const { password } = req.body;
+  const appPassword = process.env.APP_PASSWORD;
+  if (!appPassword) return res.status(500).json({ error: 'APP_PASSWORD not configured' });
+  if (password === appPassword) {
+    req.session.authenticated = true;
+    return res.json({ ok: true });
+  }
+  res.status(401).json({ error: 'Wrong password' });
+});
+
+app.post('/api/logout', (req, res) => {
+  req.session.destroy();
+  res.json({ ok: true });
+});
+
+app.get('/api/auth-check', (req, res) => {
+  res.json({ authenticated: !!req.session.authenticated });
+});
+
+// Auth middleware — protect all other /api routes
+app.use('/api', (req, res, next) => {
+  if (req.session.authenticated) return next();
+  res.status(401).json({ error: 'Not authenticated' });
+});
+
+// Static files (CSS/JS are fine to serve, the app itself checks auth)
 app.use(express.static(path.join(__dirname, 'dist'), {
   etag: false,
   setHeaders: (res, filePath) => {
-    // HTML should never be cached (it references hashed JS/CSS)
     if (filePath.endsWith('.html')) {
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     }
