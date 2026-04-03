@@ -27,8 +27,6 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
 
   const setSelectedIdx = (i) => navigate(`/monthly/${toSlug(months[i])}`, { replace: true });
   const [showArchived, setShowArchived] = useState(false);
-  const [bankInput, setBankInput] = useState(String(month.bankBalance ?? ''));
-  const [amexInput, setAmexInput] = useState(String(month.amexBalance ?? ''));
   const [showAddPaycheck, setShowAddPaycheck] = useState(false);
   const [showAddAdj, setShowAddAdj] = useState(false);
   const [newPaycheck, setNewPaycheck] = useState({ date: '', amount: '', person: 'Brandon', type: 'small' });
@@ -51,12 +49,14 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
 
   // Sync bank/amex inputs when switching months
   useEffect(() => {
-    setBankInput(String(month.bankBalance ?? ''));
-    setAmexInput(String(month.amexBalance ?? ''));
+    setBankInput(String(month?.bankBalance ?? ''));
+    setAmexInput(String(month?.amexBalance ?? ''));
   }, [selectedIdx]);
 
   const totalBills = bills.reduce((s, b) => s + b.amount, 0);
   const month = months[selectedIdx];
+  const [bankInput, setBankInput] = useState(String(month?.bankBalance ?? ''));
+  const [amexInput, setAmexInput] = useState(String(month?.amexBalance ?? ''));
 
   const updateMonth = (updates) => {
     setMonths(months.map((m, i) => i === selectedIdx ? { ...m, ...updates } : m));
