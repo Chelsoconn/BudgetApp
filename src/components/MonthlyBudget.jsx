@@ -151,10 +151,9 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
           <>
             <div className="flex gap-2 mb-3">
               <button
-                className={`month-tab${!showArchived ? ' active' : ''}`}
+                className={`archive-tab${!showArchived ? ' active' : ''}`}
                 onClick={() => {
                   setShowArchived(false);
-                  // Jump to current month
                   const curName = monthNames[now.getMonth()];
                   const idx = months.findIndex((m) => m.year === now.getFullYear() && m.name === curName);
                   if (idx >= 0) setSelectedIdx(idx);
@@ -163,10 +162,9 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
                 Current
               </button>
               <button
-                className={`month-tab${showArchived ? ' active' : ''}`}
+                className={`archive-tab${showArchived ? ' active' : ''}`}
                 onClick={() => {
                   setShowArchived(true);
-                  // Jump to most recent archived month
                   const archived = months.filter((m) => monthKey(m) < currentKey);
                   if (archived.length > 0) setSelectedIdx(months.indexOf(archived[archived.length - 1]));
                 }}

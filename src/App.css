@@ -129,6 +129,28 @@
   line-height: 1.5;
 }
 
+/* Archive tabs (Current / Archived toggle) */
+.archive-tab {
+  padding: 8px 20px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 2px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.archive-tab:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+.archive-tab.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
 /* Business expenses */
 .biz-row {
   display: flex;
