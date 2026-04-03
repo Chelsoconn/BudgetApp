@@ -695,10 +695,14 @@ const savers = {
 
 // ── History helpers ──
 
+// Only track history for these budget keys
+const HISTORY_KEYS = new Set(['budget_bills', 'budget_debts', 'budget_months', 'budget_paycheck_config']);
+
 // Keys that should skip the next pushHistory call (set after undo/redo)
 const skipHistoryKeys = new Set();
 
 async function pushHistory(dataKey) {
+  if (!HISTORY_KEYS.has(dataKey)) return;
   if (skipHistoryKeys.has(dataKey)) {
     skipHistoryKeys.delete(dataKey);
     return;
