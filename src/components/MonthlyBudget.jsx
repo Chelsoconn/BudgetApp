@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { fmt, fmtDate } from '../utils/format';
 import { computeMonthFinancials, computeCarryover } from '../utils/computeMonth';
@@ -27,6 +27,8 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
 
   const setSelectedIdx = (i) => navigate(`/monthly/${toSlug(months[i])}`, { replace: true });
   const [showArchived, setShowArchived] = useState(false);
+  const [bankInput, setBankInput] = useState(String(month.bankBalance ?? ''));
+  const [amexInput, setAmexInput] = useState(String(month.amexBalance ?? ''));
   const [showAddPaycheck, setShowAddPaycheck] = useState(false);
   const [showAddAdj, setShowAddAdj] = useState(false);
   const [newPaycheck, setNewPaycheck] = useState({ date: '', amount: '', person: 'Brandon', type: 'small' });
@@ -34,6 +36,24 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
   const [showAddMonth, setShowAddMonth] = useState(false);
   const [newMonth, setNewMonth] = useState({ name: '', year: '2025' });
   const [editingLabel, setEditingLabel] = useState(null);
+
+  // Evaluate simple math expressions like "10+5+5" or "100-20"
+  const evalMath = (str) => {
+    if (!str || str === '') return undefined;
+    try {
+      // Only allow numbers, +, -, *, /, ., spaces, and parens
+      const clean = str.replace(/[^0-9+\-*/.() ]/g, '');
+      if (!clean) return undefined;
+      const result = Function('"use strict"; return (' + clean + ')')();
+      return typeof result === 'number' && isFinite(result) ? Math.round(result * 100) / 100 : undefined;
+    } catch { return undefined; }
+  };
+
+  // Sync bank/amex inputs when switching months
+  useEffect(() => {
+    setBankInput(String(month.bankBalance ?? ''));
+    setAmexInput(String(month.amexBalance ?? ''));
+  }, [selectedIdx]);
 
   const totalBills = bills.reduce((s, b) => s + b.amount, 0);
   const month = months[selectedIdx];
@@ -213,11 +233,17 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
             <div className="flex items-center gap-2">
               <span className="text-muted">$</span>
               <input
-                type="number"
-                value={month.bankBalance ?? ''}
-                onChange={(e) => updateMonth({ bankBalance: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
+                type="text"
+                value={bankInput}
+                onChange={(e) => setBankInput(e.target.value)}
+                onBlur={() => {
+                  const val = evalMath(bankInput);
+                  setBankInput(val !== undefined ? String(val) : '');
+                  updateMonth({ bankBalance: val });
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                 style={{ width: '100%' }}
-                placeholder="0"
+                placeholder="0 (e.g. 1000+500+250)"
               />
             </div>
             <div className="text-xs text-green mt-1">+ added to available funds</div>
@@ -227,11 +253,17 @@ export default function MonthlyBudget({ bills, months, setMonths, paycheckConfig
             <div className="flex items-center gap-2">
               <span className="text-muted">$</span>
               <input
-                type="number"
-                value={month.amexBalance ?? ''}
-                onChange={(e) => updateMonth({ amexBalance: e.target.value === '' ? undefined : parseFloat(e.target.value) || 0 })}
+                type="text"
+                value={amexInput}
+                onChange={(e) => setAmexInput(e.target.value)}
+                onBlur={() => {
+                  const val = evalMath(amexInput);
+                  setAmexInput(val !== undefined ? String(val) : '');
+                  updateMonth({ amexBalance: val });
+                }}
+                onKeyDown={(e) => { if (e.key === 'Enter') e.target.blur(); }}
                 style={{ width: '100%' }}
-                placeholder="0"
+                placeholder="0 (e.g. 300+150+75)"
               />
             </div>
             <div className="text-xs text-red mt-1">− subtracted from available funds</div>
