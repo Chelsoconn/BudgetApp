@@ -1,5 +1,6 @@
 const express = require('express');
 const session = require('express-session');
+const pgSession = require('connect-pg-simple')(session);
 const crypto = require('crypto');
 const path = require('path');
 const { pool, initDb } = require('./db.cjs');
@@ -9,8 +10,9 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json({ limit: '5mb' }));
 
-// Session middleware
+// Session middleware — stored in PostgreSQL so sessions survive dyno restarts
 app.use(session({
+  store: new pgSession({ pool, createTableIfMissing: true }),
   secret: process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex'),
   resave: false,
   saveUninitialized: false,
