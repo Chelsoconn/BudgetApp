@@ -250,11 +250,10 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
 
       {/* Yearly Lifestyle Cost Analysis */}
       {(() => {
-        // Sum ALL expenses from 2027 months (bills + spending + extras + negative adjustments)
+        // Sum recurring expenses from 2027 months (bills + spending + extras only)
+        // Excludes one-time adjustments since they aren't recurring lifestyle costs
         const months2027 = allMonths.filter(m => m.year === 2027);
-        const yearlyExpenses = months2027.reduce((s, m) => s + m.totalExpenses, 0);
-        const yearlyNegAdj = months2027.reduce((s, m) => s + Math.min(0, m.adjustments), 0);
-        const yearlyAfterTax = yearlyExpenses + Math.abs(yearlyNegAdj);
+        const yearlyAfterTax = months2027.reduce((s, m) => s + m.totalExpenses, 0);
 
         // Gross income: Brandon $200k + Chelsea $120k = $320k
         const grossBrandon = 200000;
@@ -283,7 +282,9 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
         const totalFica = ficaBrandon + ficaChelsea;
 
         // Texas: no state income tax
-        const totalTax = fedTax + totalFica;
+        // Additional pre-tax deductions (401k, HSA, insurance premiums, etc.)
+        const preTaxDeductions = 5000;
+        const totalTax = fedTax + totalFica + preTaxDeductions;
         const effectiveRate = totalTax / grossTotal;
         const afterTaxIncome = grossTotal - totalTax;
 
@@ -324,6 +325,10 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
               <div className="flex justify-between">
                 <span className="text-muted">FICA (Social Security + Medicare)</span>
                 <span className="text-red font-semibold">−{fmt(totalFica)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Pre-tax deductions (401k, insurance, etc.)</span>
+                <span className="text-red font-semibold">−{fmt(preTaxDeductions)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted">State tax (Texas)</span>
