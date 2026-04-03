@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
 import './App.css';
 import { initialBills, initialDebts, initialMonths, brandonSmall, brandonBig, chelseaPaycheck } from './data/budgetData';
-import { usePersistedState, skipNextHistory } from './hooks/usePersistedState';
+import { usePersistedState } from './hooks/usePersistedState';
 import Dashboard from './components/Dashboard';
 import Bills from './components/Bills';
 import MonthlyBudget from './components/MonthlyBudget';
@@ -182,18 +182,7 @@ function AuthenticatedApp({ onLogout }) {
       </nav>
 
       <main className="main">
-        <UndoRedo onRestore={(key, data) => {
-          const setters = {
-            budget_bills: setBills,
-            budget_debts: setDebts,
-            budget_months: setMonths,
-            budget_paycheck_config: setPaycheckConfig,
-          };
-          if (setters[key]) {
-            skipNextHistory();
-            setters[key](data);
-          }
-        }} />
+        <UndoRedo />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard bills={bills} debts={debts} months={months} dashNote={dashNote} setDashNote={setDashNote} />} />
