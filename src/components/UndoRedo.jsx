@@ -61,8 +61,6 @@ export default function UndoRedo({ onRestore }) {
     }
   };
 
-  if (totalUndo === 0 && totalRedo === 0) return null;
-
   return (
     <div className="undo-redo-bar">
       <button

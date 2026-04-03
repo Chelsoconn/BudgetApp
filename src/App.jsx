@@ -182,6 +182,15 @@ function AuthenticatedApp({ onLogout }) {
       </nav>
 
       <main className="main">
+        <UndoRedo onRestore={(key, data) => {
+          const setters = {
+            budget_bills: setBills,
+            budget_debts: setDebts,
+            budget_months: setMonths,
+            budget_paycheck_config: setPaycheckConfig,
+          };
+          if (setters[key]) setters[key](data);
+        }} />
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard bills={bills} debts={debts} months={months} dashNote={dashNote} setDashNote={setDashNote} />} />
@@ -207,15 +216,6 @@ function AuthenticatedApp({ onLogout }) {
           } />
         </Routes>
       </main>
-      <UndoRedo onRestore={(key, data) => {
-        const setters = {
-          budget_bills: setBills,
-          budget_debts: setDebts,
-          budget_months: setMonths,
-          budget_paycheck_config: setPaycheckConfig,
-        };
-        if (setters[key]) setters[key](data);
-      }} />
     </div>
   );
 }

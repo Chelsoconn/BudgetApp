@@ -153,18 +153,11 @@
 
 /* Undo/Redo bar */
 .undo-redo-bar {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 6px;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-  z-index: 999;
+  padding: 8px 0;
+  margin-bottom: 8px;
 }
 .undo-btn, .redo-btn {
   display: flex;
