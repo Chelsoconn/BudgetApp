@@ -30,8 +30,10 @@ export default function UndoRedo({ onRestore }) {
     try {
       const res = await fetch(`/api/${action}-latest`, { method: 'POST' });
       if (res.ok) {
-        const { key, data } = await res.json();
-        onRestore(key, data);
+        const { restored } = await res.json();
+        for (const [key, data] of Object.entries(restored)) {
+          onRestore(key, data);
+        }
         setToast(action === 'undo' ? 'Undone!' : 'Redone!');
         await fetchCounts();
       }

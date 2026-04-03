@@ -96,6 +96,17 @@ app.post('/api/snapshot/:key', async (req, res) => {
   }
 });
 
+// POST /api/snapshot-all — snapshot all budget keys at once (for multi-key changes like salary)
+app.post('/api/snapshot-all', async (req, res) => {
+  try {
+    const keys = ['budget_bills', 'budget_debts', 'budget_months', 'budget_paycheck_config'];
+    for (const key of keys) await pushHistory(key);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Snapshot failed' });
+  }
+});
+
 // PUT or POST /api/data/:key — save to normalized tables (NO auto-history)
 const upsertData = async (req, res) => {
   const key = req.params.key;
@@ -162,30 +173,57 @@ app.get('/api/history-summary', async (req, res) => {
   }
 });
 
-// Undo the most recent change across all keys
+// Undo the most recent change — restores all keys snapshotted within 2s of each other
 app.post('/api/undo-latest', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, data_key FROM change_history ORDER BY id DESC LIMIT 1');
+    const { rows } = await pool.query('SELECT id, data_key, created_at FROM change_history ORDER BY id DESC LIMIT 1');
     if (rows.length === 0) return res.status(404).json({ error: 'Nothing to undo' });
-    const key = rows[0].data_key;
-    const snapshot = await undo(key);
-    if (snapshot === null) return res.status(404).json({ error: 'Nothing to undo' });
-    res.json({ key, data: snapshot });
+
+    const latest = rows[0];
+    const cutoff = new Date(new Date(latest.created_at).getTime() - 2000);
+
+    // Find all keys snapshotted around the same time
+    const { rows: group } = await pool.query(
+      'SELECT DISTINCT data_key FROM change_history WHERE created_at >= $1 ORDER BY data_key',
+      [cutoff]
+    );
+
+    const restored = {};
+    for (const row of group) {
+      const snapshot = await undo(row.data_key);
+      if (snapshot !== null) restored[row.data_key] = snapshot;
+    }
+
+    if (Object.keys(restored).length === 0) return res.status(404).json({ error: 'Nothing to undo' });
+    res.json({ restored });
   } catch (err) {
     console.error('Undo-latest error:', err);
     res.status(500).json({ error: 'Undo failed' });
   }
 });
 
-// Redo the most recent undone change across all keys
+// Redo the most recent undone change — restores all keys
 app.post('/api/redo-latest', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT id, data_key FROM redo_history ORDER BY id DESC LIMIT 1');
+    const { rows } = await pool.query('SELECT id, data_key, created_at FROM redo_history ORDER BY id DESC LIMIT 1');
     if (rows.length === 0) return res.status(404).json({ error: 'Nothing to redo' });
-    const key = rows[0].data_key;
-    const snapshot = await redo(key);
-    if (snapshot === null) return res.status(404).json({ error: 'Nothing to redo' });
-    res.json({ key, data: snapshot });
+
+    const latest = rows[0];
+    const cutoff = new Date(new Date(latest.created_at).getTime() - 2000);
+
+    const { rows: group } = await pool.query(
+      'SELECT DISTINCT data_key FROM redo_history WHERE created_at >= $1 ORDER BY data_key',
+      [cutoff]
+    );
+
+    const restored = {};
+    for (const row of group) {
+      const snapshot = await redo(row.data_key);
+      if (snapshot !== null) restored[row.data_key] = snapshot;
+    }
+
+    if (Object.keys(restored).length === 0) return res.status(404).json({ error: 'Nothing to redo' });
+    res.json({ restored });
   } catch (err) {
     console.error('Redo-latest error:', err);
     res.status(500).json({ error: 'Redo failed' });
