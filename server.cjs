@@ -3,7 +3,7 @@ const session = require('express-session');
 const pgSession = require('connect-pg-simple')(session);
 const crypto = require('crypto');
 const path = require('path');
-const { pool, initDb } = require('./db.cjs');
+const { pool, initDb, loaders, savers } = require('./db.cjs');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -64,69 +64,45 @@ app.use(express.static(path.join(__dirname, 'dist'), {
   },
 }));
 
-// GET /api/data — bulk load all keys
-app.get('/api/data', async (req, res) => {
-  try {
-    const { rows } = await pool.query('SELECT key, value FROM budget_data');
-    const result = {};
-    for (const row of rows) result[row.key] = row.value;
-    res.json(result);
-  } catch (err) {
-    console.error('GET /api/data error:', err);
-    res.status(500).json({ error: 'db error' });
-  }
-});
+// PUT /api/data/version — no-op now (schema managed by normalized tables)
+app.put('/api/data/version', (req, res) => res.json({ ok: true }));
 
-// PUT /api/data/version — must be BEFORE :key route
-// Client detected a schema version change — clear stale default keys, keep user data
-app.put('/api/data/version', async (req, res) => {
-  try {
-    const { version } = req.body;
-    const { rows } = await pool.query("SELECT value FROM budget_data WHERE key = 'budget_data_version'");
-    const dbVersion = rows.length > 0 ? rows[0].value : null;
-
-    if (dbVersion !== version) {
-      // Clear stale default data — playgrounds are user-created so keep them
-      await pool.query(
-        "DELETE FROM budget_data WHERE key IN ('budget_bills', 'budget_debts', 'budget_months', 'budget_paycheck_config')"
-      );
-      await pool.query(
-        `INSERT INTO budget_data (key, value, updated_at) VALUES ('budget_data_version', $1, NOW())
-         ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
-        [JSON.stringify(version)]
-      );
-    }
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('PUT /api/data/version error:', err);
-    res.status(500).json({ error: 'db error' });
-  }
-});
-
-// GET /api/data/:key
+// GET /api/data/:key — load from normalized tables
 app.get('/api/data/:key', async (req, res) => {
+  const key = req.params.key;
   try {
-    const { rows } = await pool.query('SELECT value FROM budget_data WHERE key = $1', [req.params.key]);
+    if (loaders[key]) {
+      const data = await loaders[key]();
+      return res.json(data);
+    }
+    // Fallback to budget_data for playgrounds etc.
+    const { rows } = await pool.query('SELECT value FROM budget_data WHERE key = $1', [key]);
     if (rows.length === 0) return res.status(404).json({ error: 'not found' });
     res.json(rows[0].value);
   } catch (err) {
-    console.error('GET /api/data/:key error:', err);
+    console.error(`GET /api/data/${key} error:`, err);
     res.status(500).json({ error: 'db error' });
   }
 });
 
-// PUT or POST /api/data/:key — upsert (POST needed for sendBeacon on page close)
+// PUT or POST /api/data/:key — save to normalized tables
 const upsertData = async (req, res) => {
+  const key = req.params.key;
   try {
+    if (savers[key]) {
+      await savers[key](req.body);
+      return res.json({ ok: true });
+    }
+    // Fallback to budget_data for playgrounds etc.
     await pool.query(
       `INSERT INTO budget_data (key, value, updated_at)
        VALUES ($1, $2, NOW())
        ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
-      [req.params.key, JSON.stringify(req.body)]
+      [key, JSON.stringify(req.body)]
     );
     res.json({ ok: true });
   } catch (err) {
-    console.error('PUT /api/data/:key error:', err);
+    console.error(`PUT /api/data/${key} error:`, err);
     res.status(500).json({ error: 'db error' });
   }
 };
