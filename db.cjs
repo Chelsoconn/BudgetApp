@@ -58,10 +58,11 @@ async function initDb() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS paycheck_templates (
+      id SERIAL PRIMARY KEY,
       person TEXT NOT NULL,
       pay_type TEXT NOT NULL,
       amount NUMERIC(12,2) NOT NULL DEFAULT 0,
-      PRIMARY KEY (person, pay_type)
+      UNIQUE (person, pay_type)
     )
   `);
 
@@ -69,11 +70,9 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS paychecks (
       id SERIAL PRIMARY KEY,
       month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+      template_id INT NOT NULL REFERENCES paycheck_templates(id),
       pay_date TEXT DEFAULT '',
-      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
-      person TEXT DEFAULT 'Brandon',
-      pay_type TEXT DEFAULT 'small',
-      FOREIGN KEY (person, pay_type) REFERENCES paycheck_templates(person, pay_type)
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0
     )
   `);
 
@@ -97,31 +96,35 @@ async function initDb() {
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS month_paid_bills (
+      id SERIAL PRIMARY KEY,
       month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
       bill_app_id INT NOT NULL,
-      PRIMARY KEY (month_id, bill_app_id)
+      UNIQUE (month_id, bill_app_id)
     )
   `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS month_bill_overrides (
+      id SERIAL PRIMARY KEY,
       month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
       bill_app_id INT NOT NULL,
       amount NUMERIC(12,2) NOT NULL,
-      PRIMARY KEY (month_id, bill_app_id)
+      UNIQUE (month_id, bill_app_id)
     )
   `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS settings (
-      key TEXT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
+      key TEXT NOT NULL UNIQUE,
       value TEXT NOT NULL
     )
   `);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sitter_days (
-      date_key TEXT PRIMARY KEY,
+      id SERIAL PRIMARY KEY,
+      date_key TEXT NOT NULL UNIQUE,
       covered BOOLEAN DEFAULT false,
       note TEXT DEFAULT ''
     )
@@ -154,6 +157,9 @@ async function initDb() {
     )
   `);
 
+  // Migrate schema from old composite-PK tables to new SERIAL-PK tables
+  await migrateToSerialPKs();
+
   // Migrate from old JSON blobs if normalized tables are empty
   await migrateIfNeeded();
 
@@ -165,24 +171,140 @@ async function initDb() {
     if (sMap.brandon_small) await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT DO NOTHING", [sMap.brandon_small]);
     if (sMap.brandon_big) await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT DO NOTHING", [sMap.brandon_big]);
     if (sMap.chelsea_pay) await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT DO NOTHING", [sMap.chelsea_pay]);
-    // Remove old paycheck settings
     await pool.query("DELETE FROM settings WHERE key IN ('brandon_small', 'brandon_big', 'chelsea_pay')");
     console.log('Migrated paycheck config to paycheck_templates table.');
   }
 
-  // Add FK from paychecks to paycheck_templates if not already present
-  try {
-    await pool.query(`
-      ALTER TABLE paychecks
-      ADD CONSTRAINT fk_paycheck_template
-      FOREIGN KEY (person, pay_type) REFERENCES paycheck_templates(person, pay_type)
-    `);
-  } catch (e) {
-    // Constraint already exists — ignore
-  }
-
   // Clean up old budget_data blobs now that everything is normalized
   await pool.query("DELETE FROM budget_data WHERE key NOT IN ('budget_data_version')");
+}
+
+/**
+ * Migrate from old composite-PK schema to new SERIAL-PK schema.
+ * Detects old tables by checking if paycheck_templates has no 'id' column,
+ * or if paychecks still has person/pay_type columns instead of template_id.
+ */
+async function migrateToSerialPKs() {
+  // Check if paycheck_templates already has an 'id' column
+  const { rows: ptCols } = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'paycheck_templates' AND column_name = 'id'
+  `);
+  if (ptCols.length > 0) return; // Already migrated to new schema
+
+  console.log('Migrating tables to SERIAL primary keys...');
+
+  // --- paycheck_templates: add id, change PK ---
+  // Save existing data
+  const { rows: oldTemplates } = await pool.query('SELECT person, pay_type, amount FROM paycheck_templates');
+
+  // Drop paychecks FK first (it references old composite PK)
+  try { await pool.query('ALTER TABLE paychecks DROP CONSTRAINT IF EXISTS fk_paycheck_template'); } catch(e) {}
+  try { await pool.query('ALTER TABLE paychecks DROP CONSTRAINT IF EXISTS paychecks_person_pay_type_fkey'); } catch(e) {}
+
+  // Save old paychecks data
+  const { rows: oldPaychecks } = await pool.query('SELECT id, month_id, pay_date, amount, person, pay_type FROM paychecks');
+
+  // Recreate paycheck_templates
+  await pool.query('DROP TABLE IF EXISTS paycheck_templates CASCADE');
+  await pool.query(`
+    CREATE TABLE paycheck_templates (
+      id SERIAL PRIMARY KEY,
+      person TEXT NOT NULL,
+      pay_type TEXT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      UNIQUE (person, pay_type)
+    )
+  `);
+  for (const t of oldTemplates) {
+    await pool.query('INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ($1, $2, $3)', [t.person, t.pay_type, t.amount]);
+  }
+
+  // Build lookup map person+pay_type -> template id
+  const { rows: newTemplates } = await pool.query('SELECT id, person, pay_type FROM paycheck_templates');
+  const tmplMap = {};
+  for (const t of newTemplates) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
+
+  // Recreate paychecks with template_id FK
+  await pool.query('DROP TABLE IF EXISTS paychecks CASCADE');
+  await pool.query(`
+    CREATE TABLE paychecks (
+      id SERIAL PRIMARY KEY,
+      month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+      template_id INT NOT NULL REFERENCES paycheck_templates(id),
+      pay_date TEXT DEFAULT '',
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0
+    )
+  `);
+  for (const p of oldPaychecks) {
+    const tId = tmplMap[`${p.person}_${p.pay_type}`];
+    if (tId) {
+      await pool.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
+        [p.month_id, tId, p.pay_date, p.amount]);
+    }
+  }
+
+  // --- sitter_days: add id, change PK ---
+  const { rows: oldSitter } = await pool.query('SELECT date_key, covered, note FROM sitter_days');
+  await pool.query('DROP TABLE IF EXISTS sitter_days CASCADE');
+  await pool.query(`
+    CREATE TABLE sitter_days (
+      id SERIAL PRIMARY KEY,
+      date_key TEXT NOT NULL UNIQUE,
+      covered BOOLEAN DEFAULT false,
+      note TEXT DEFAULT ''
+    )
+  `);
+  for (const s of oldSitter) {
+    await pool.query('INSERT INTO sitter_days (date_key, covered, note) VALUES ($1, $2, $3)', [s.date_key, s.covered, s.note]);
+  }
+
+  // --- settings: add id, change PK ---
+  const { rows: oldSettings } = await pool.query('SELECT key, value FROM settings');
+  await pool.query('DROP TABLE IF EXISTS settings CASCADE');
+  await pool.query(`
+    CREATE TABLE settings (
+      id SERIAL PRIMARY KEY,
+      key TEXT NOT NULL UNIQUE,
+      value TEXT NOT NULL
+    )
+  `);
+  for (const s of oldSettings) {
+    await pool.query('INSERT INTO settings (key, value) VALUES ($1, $2)', [s.key, s.value]);
+  }
+
+  // --- month_paid_bills: add id, change PK ---
+  const { rows: oldPaidBills } = await pool.query('SELECT month_id, bill_app_id FROM month_paid_bills');
+  await pool.query('DROP TABLE IF EXISTS month_paid_bills CASCADE');
+  await pool.query(`
+    CREATE TABLE month_paid_bills (
+      id SERIAL PRIMARY KEY,
+      month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+      bill_app_id INT NOT NULL,
+      UNIQUE (month_id, bill_app_id)
+    )
+  `);
+  for (const r of oldPaidBills) {
+    await pool.query('INSERT INTO month_paid_bills (month_id, bill_app_id) VALUES ($1, $2)', [r.month_id, r.bill_app_id]);
+  }
+
+  // --- month_bill_overrides: add id, change PK ---
+  const { rows: oldOverrides } = await pool.query('SELECT month_id, bill_app_id, amount FROM month_bill_overrides');
+  await pool.query('DROP TABLE IF EXISTS month_bill_overrides CASCADE');
+  await pool.query(`
+    CREATE TABLE month_bill_overrides (
+      id SERIAL PRIMARY KEY,
+      month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+      bill_app_id INT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL,
+      UNIQUE (month_id, bill_app_id)
+    )
+  `);
+  for (const r of oldOverrides) {
+    await pool.query('INSERT INTO month_bill_overrides (month_id, bill_app_id, amount) VALUES ($1, $2, $3)', [r.month_id, r.bill_app_id, r.amount]);
+  }
+
+  console.log('SERIAL PK migration complete.');
 }
 
 async function migrateIfNeeded() {
@@ -219,6 +341,19 @@ async function migrateIfNeeded() {
     }
   }
 
+  // Paycheck templates MUST be populated before months/paychecks for FK refs
+  if (data.budget_paycheck_config) {
+    const pc = data.budget_paycheck_config;
+    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT DO NOTHING", [pc.brandonSmall]);
+    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT DO NOTHING", [pc.brandonBig]);
+    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT DO NOTHING", [pc.chelseaPay]);
+  }
+
+  // Build template lookup for paycheck insertion
+  const { rows: tmplRows } = await pool.query('SELECT id, person, pay_type FROM paycheck_templates');
+  const tmplMap = {};
+  for (const t of tmplRows) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
+
   // Months + nested data
   if (data.budget_months) {
     for (let i = 0; i < data.budget_months.length; i++) {
@@ -232,10 +367,15 @@ async function migrateIfNeeded() {
       const mid = inserted.id;
 
       for (const p of (m.paychecks || [])) {
-        await pool.query(
-          'INSERT INTO paychecks (month_id, pay_date, amount, person, pay_type) VALUES ($1, $2, $3, $4, $5)',
-          [mid, p.date || '', p.amount, p.person || 'Brandon', p.type || 'small']
-        );
+        const person = p.person || 'Brandon';
+        const payType = p.type || 'small';
+        const tId = tmplMap[`${person}_${payType}`];
+        if (tId) {
+          await pool.query(
+            'INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
+            [mid, tId, p.date || '', p.amount]
+          );
+        }
       }
 
       for (const e of (m.expenses || [])) {
@@ -260,14 +400,6 @@ async function migrateIfNeeded() {
         await pool.query('INSERT INTO month_bill_overrides (month_id, bill_app_id, amount) VALUES ($1, $2, $3)', [mid, parseInt(billId), amt]);
       }
     }
-  }
-
-  // Paycheck templates
-  if (data.budget_paycheck_config) {
-    const pc = data.budget_paycheck_config;
-    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT DO NOTHING", [pc.brandonSmall]);
-    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT DO NOTHING", [pc.brandonBig]);
-    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT DO NOTHING", [pc.chelseaPay]);
   }
 
   if (data.dash_note) {
@@ -323,6 +455,12 @@ async function loadDebts() {
 
 async function loadMonths() {
   const { rows: monthRows } = await pool.query('SELECT * FROM months ORDER BY sort_order');
+
+  // Build template lookup: template_id -> {person, pay_type}
+  const { rows: tmplRows } = await pool.query('SELECT id, person, pay_type FROM paycheck_templates');
+  const tmplMap = {};
+  for (const t of tmplRows) tmplMap[t.id] = { person: t.person, payType: t.pay_type };
+
   const result = [];
   for (const m of monthRows) {
     const { rows: paychecks } = await pool.query('SELECT * FROM paychecks WHERE month_id = $1 ORDER BY id', [m.id]);
@@ -333,7 +471,10 @@ async function loadMonths() {
 
     const month = {
       id: m.app_id, name: m.name, year: m.year, notes: m.notes || '',
-      paychecks: paychecks.map(p => ({ date: p.pay_date, amount: Number(p.amount), person: p.person, type: p.pay_type })),
+      paychecks: paychecks.map(p => {
+        const tmpl = tmplMap[p.template_id] || { person: 'Brandon', payType: 'small' };
+        return { date: p.pay_date, amount: Number(p.amount), person: tmpl.person, type: tmpl.payType };
+      }),
       expenses: expenses.map(e => ({ label: e.label, amount: Number(e.amount) })),
       adjustments: adjustments.map(a => ({ label: a.label, amount: Number(a.amount) })),
       paidBills: paidBills.map(p => p.bill_app_id),
@@ -404,9 +545,10 @@ async function saveDebts(debts) {
 }
 
 async function saveMonths(months) {
-  // Get existing month DB IDs by app_id for reference
-  const { rows: existing } = await pool.query('SELECT id, app_id FROM months');
-  const existingMap = Object.fromEntries(existing.map(r => [r.app_id, r.id]));
+  // Build template lookup: person+pay_type -> template_id
+  const { rows: tmplRows } = await pool.query('SELECT id, person, pay_type FROM paycheck_templates');
+  const tmplMap = {};
+  for (const t of tmplRows) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
 
   // Delete all and re-insert (simplest for full replacement)
   await pool.query('DELETE FROM months');
@@ -422,8 +564,13 @@ async function saveMonths(months) {
     const mid = inserted.id;
 
     for (const p of (m.paychecks || [])) {
-      await pool.query('INSERT INTO paychecks (month_id, pay_date, amount, person, pay_type) VALUES ($1, $2, $3, $4, $5)',
-        [mid, p.date || '', p.amount, p.person || 'Brandon', p.type || 'small']);
+      const person = p.person || 'Brandon';
+      const payType = p.type || 'small';
+      const tId = tmplMap[`${person}_${payType}`];
+      if (tId) {
+        await pool.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
+          [mid, tId, p.date || '', p.amount]);
+      }
     }
     for (const e of (m.expenses || [])) {
       await pool.query('INSERT INTO month_expenses (month_id, label, amount) VALUES ($1, $2, $3)', [mid, e.label, e.amount]);
