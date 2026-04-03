@@ -231,7 +231,7 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
       </div>
 
       {/* End of year milestones */}
-      <div className="grid-2">
+      <div className="grid-2 mb-4">
         <div className="stat-card" style={{ borderColor: endOf2026 >= 0 ? 'var(--green)' : 'var(--red)', borderWidth: 1 }}>
           <div className="stat-label">End of 2026</div>
           <div className={`stat-value ${endOf2026 >= 0 ? 'text-green' : 'text-red'}`}>
@@ -247,6 +247,108 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
           <div className="stat-sub">December 2027 final</div>
         </div>
       </div>
+
+      {/* Yearly Lifestyle Cost Analysis */}
+      {(() => {
+        // Sum ALL expenses from 2027 months (bills + spending + extras + negative adjustments)
+        const months2027 = allMonths.filter(m => m.year === 2027);
+        const yearlyExpenses = months2027.reduce((s, m) => s + m.totalExpenses, 0);
+        const yearlyNegAdj = months2027.reduce((s, m) => s + Math.min(0, m.adjustments), 0);
+        const yearlyAfterTax = yearlyExpenses + Math.abs(yearlyNegAdj);
+
+        // Gross income: Brandon $200k + Chelsea $120k = $320k
+        const grossBrandon = 200000;
+        const grossChelsea = 120000;
+        const grossTotal = grossBrandon + grossChelsea;
+
+        // 2025 MFJ federal tax on $320k
+        // Standard deduction: $30,000, 2 child tax credits: $4,000
+        const taxableIncome = grossTotal - 30000;
+        // Federal brackets MFJ 2025:
+        // 10%: 0-23,850, 12%: 23,851-96,950, 22%: 96,951-206,700, 24%: 206,701-394,600
+        let fedTax = 0;
+        const brackets = [[23850, 0.10], [73100, 0.12], [109750, 0.22], [187900, 0.24], [Infinity, 0.32]];
+        let remaining = taxableIncome;
+        for (const [size, rate] of brackets) {
+          const chunk = Math.min(remaining, size);
+          fedTax += chunk * rate;
+          remaining -= chunk;
+          if (remaining <= 0) break;
+        }
+        fedTax -= 4000; // 2 child tax credits
+
+        // FICA: 7.65% each on earned income (capped SS at $168,600)
+        const ficaBrandon = Math.min(grossBrandon, 168600) * 0.062 + grossBrandon * 0.0145;
+        const ficaChelsea = Math.min(grossChelsea, 168600) * 0.062 + grossChelsea * 0.0145;
+        const totalFica = ficaBrandon + ficaChelsea;
+
+        // Texas: no state income tax
+        const totalTax = fedTax + totalFica;
+        const effectiveRate = totalTax / grossTotal;
+        const afterTaxIncome = grossTotal - totalTax;
+
+        // What you'd need to earn gross to cover your lifestyle
+        const neededGross = yearlyAfterTax / (1 - effectiveRate);
+
+        return (
+          <div className="card">
+            <div className="section-heading">💰 Yearly Lifestyle Cost (based on 2027)</div>
+            <div className="grid-3 mb-4" style={{ gap: 12 }}>
+              <div className="stat-card">
+                <div className="stat-label">After-Tax Needed</div>
+                <div className="stat-value" style={{ fontSize: 20 }}>{fmt(yearlyAfterTax)}</div>
+                <div className="stat-sub">{fmt(yearlyAfterTax / 12)}/mo lifestyle</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-label">Gross Needed</div>
+                <div className="stat-value" style={{ fontSize: 20 }}>{fmt(neededGross)}</div>
+                <div className="stat-sub">to cover lifestyle pre-tax</div>
+              </div>
+              <div className="stat-card" style={{ borderColor: grossTotal >= neededGross ? 'var(--green)' : 'var(--red)', borderWidth: 1 }}>
+                <div className="stat-label">Gross Income (Actual)</div>
+                <div className={`stat-value ${grossTotal >= neededGross ? 'text-green' : 'text-red'}`} style={{ fontSize: 20 }}>{fmt(grossTotal)}</div>
+                <div className="stat-sub">Brandon $200k + Chelsea $120k</div>
+              </div>
+            </div>
+
+            <div className="divider" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13 }}>
+              <div className="flex justify-between">
+                <span className="text-muted">Combined gross salary</span>
+                <span className="font-semibold">{fmt(grossTotal)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Federal income tax</span>
+                <span className="text-red font-semibold">−{fmt(fedTax)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">FICA (Social Security + Medicare)</span>
+                <span className="text-red font-semibold">−{fmt(totalFica)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">State tax (Texas)</span>
+                <span className="font-semibold">$0</span>
+              </div>
+              <div className="divider" style={{ margin: '4px 0' }} />
+              <div className="flex justify-between">
+                <span className="font-bold">Take-home pay</span>
+                <span className="font-bold text-green">{fmt(afterTaxIncome)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted">Effective tax rate</span>
+                <span className="font-semibold">{(effectiveRate * 100).toFixed(1)}%</span>
+              </div>
+              <div className="divider" style={{ margin: '4px 0' }} />
+              <div className="flex justify-between">
+                <span className="font-bold">Surplus (take-home − lifestyle)</span>
+                <span className={`font-bold ${afterTaxIncome - yearlyAfterTax >= 0 ? 'text-green' : 'text-red'}`}>
+                  {fmt(afterTaxIncome - yearlyAfterTax)}/yr ({fmt((afterTaxIncome - yearlyAfterTax) / 12)}/mo)
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
