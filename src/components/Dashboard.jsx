@@ -180,12 +180,32 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
         </div>
       </div>
 
-      {/* Monthly Bills stat */}
-      <div className="stat-card mb-4">
-        <div className="stat-label">Monthly Bills</div>
-        <div className="stat-value">{fmt(totalBills)}</div>
-        <div className="stat-sub">{bills.length} recurring expenses</div>
-      </div>
+      {/* Monthly Bills + Avg Spending */}
+      {(() => {
+        const monthNamesArr = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+        const startKey = 2026 * 12 + 10; // Nov 2026
+        const endKey = 2027 * 12 + 10;   // Nov 2027
+        const rangeMonths = months.filter(m => {
+          const k = m.year * 12 + monthNamesArr.indexOf(m.name);
+          return k >= startKey && k <= endKey;
+        });
+        const totalSpending = rangeMonths.reduce((s, m) => s + (m.expenses ?? []).reduce((s2, e) => s2 + (e.amount ?? 0), 0), 0);
+        const avgSpending = rangeMonths.length > 0 ? totalSpending / rangeMonths.length : 0;
+        return (
+          <div className="grid-2 mb-4">
+            <div className="stat-card">
+              <div className="stat-label">Monthly Bills</div>
+              <div className="stat-value">{fmt(totalBills)}</div>
+              <div className="stat-sub">{bills.length} recurring expenses</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Avg Monthly Spending</div>
+              <div className="stat-value">{fmt(avgSpending)}</div>
+              <div className="stat-sub">Nov '26 – Nov '27 ({rangeMonths.length} months)</div>
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="grid-2 mb-4">
         {/* Bills by Category */}
