@@ -57,13 +57,23 @@ async function initDb() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS paycheck_templates (
+      person TEXT NOT NULL,
+      pay_type TEXT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      PRIMARY KEY (person, pay_type)
+    )
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS paychecks (
       id SERIAL PRIMARY KEY,
       month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
       pay_date TEXT DEFAULT '',
       amount NUMERIC(12,2) NOT NULL DEFAULT 0,
       person TEXT DEFAULT 'Brandon',
-      pay_type TEXT DEFAULT 'small'
+      pay_type TEXT DEFAULT 'small',
+      FOREIGN KEY (person, pay_type) REFERENCES paycheck_templates(person, pay_type)
     )
   `);
 
@@ -147,6 +157,30 @@ async function initDb() {
   // Migrate from old JSON blobs if normalized tables are empty
   await migrateIfNeeded();
 
+  // Migrate paycheck config from settings to paycheck_templates if needed
+  const { rows: tmplCheck } = await pool.query('SELECT COUNT(*) as c FROM paycheck_templates');
+  if (parseInt(tmplCheck[0].c) === 0) {
+    const { rows: settingsRows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('brandon_small', 'brandon_big', 'chelsea_pay')");
+    const sMap = Object.fromEntries(settingsRows.map(r => [r.key, Number(r.value)]));
+    if (sMap.brandon_small) await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT DO NOTHING", [sMap.brandon_small]);
+    if (sMap.brandon_big) await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT DO NOTHING", [sMap.brandon_big]);
+    if (sMap.chelsea_pay) await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT DO NOTHING", [sMap.chelsea_pay]);
+    // Remove old paycheck settings
+    await pool.query("DELETE FROM settings WHERE key IN ('brandon_small', 'brandon_big', 'chelsea_pay')");
+    console.log('Migrated paycheck config to paycheck_templates table.');
+  }
+
+  // Add FK from paychecks to paycheck_templates if not already present
+  try {
+    await pool.query(`
+      ALTER TABLE paychecks
+      ADD CONSTRAINT fk_paycheck_template
+      FOREIGN KEY (person, pay_type) REFERENCES paycheck_templates(person, pay_type)
+    `);
+  } catch (e) {
+    // Constraint already exists — ignore
+  }
+
   // Clean up old budget_data blobs now that everything is normalized
   await pool.query("DELETE FROM budget_data WHERE key NOT IN ('budget_data_version')");
 }
@@ -228,12 +262,12 @@ async function migrateIfNeeded() {
     }
   }
 
-  // Settings
+  // Paycheck templates
   if (data.budget_paycheck_config) {
     const pc = data.budget_paycheck_config;
-    await pool.query("INSERT INTO settings (key, value) VALUES ('brandon_small', $1) ON CONFLICT DO NOTHING", [String(pc.brandonSmall)]);
-    await pool.query("INSERT INTO settings (key, value) VALUES ('brandon_big', $1) ON CONFLICT DO NOTHING", [String(pc.brandonBig)]);
-    await pool.query("INSERT INTO settings (key, value) VALUES ('chelsea_pay', $1) ON CONFLICT DO NOTHING", [String(pc.chelseaPay)]);
+    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT DO NOTHING", [pc.brandonSmall]);
+    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT DO NOTHING", [pc.brandonBig]);
+    await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT DO NOTHING", [pc.chelseaPay]);
   }
 
   if (data.dash_note) {
@@ -316,9 +350,14 @@ async function loadMonths() {
 }
 
 async function loadPaycheckConfig() {
-  const { rows } = await pool.query("SELECT key, value FROM settings WHERE key IN ('brandon_small', 'brandon_big', 'chelsea_pay')");
-  const map = Object.fromEntries(rows.map(r => [r.key, Number(r.value)]));
-  return { brandonSmall: map.brandon_small || 0, brandonBig: map.brandon_big || 0, chelseaPay: map.chelsea_pay || 0 };
+  const { rows } = await pool.query('SELECT person, pay_type, amount FROM paycheck_templates');
+  const map = {};
+  for (const r of rows) map[`${r.person}_${r.pay_type}`] = Number(r.amount);
+  return {
+    brandonSmall: map['Brandon_small'] || 0,
+    brandonBig: map['Brandon_big'] || 0,
+    chelseaPay: map['Chelsea_regular'] || 0,
+  };
 }
 
 async function loadDashNote() {
@@ -402,9 +441,9 @@ async function saveMonths(months) {
 }
 
 async function savePaycheckConfig(config) {
-  await pool.query("INSERT INTO settings (key, value) VALUES ('brandon_small', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [String(config.brandonSmall)]);
-  await pool.query("INSERT INTO settings (key, value) VALUES ('brandon_big', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [String(config.brandonBig)]);
-  await pool.query("INSERT INTO settings (key, value) VALUES ('chelsea_pay', $1) ON CONFLICT (key) DO UPDATE SET value = $1", [String(config.chelseaPay)]);
+  await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.brandonSmall]);
+  await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.brandonBig]);
+  await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.chelseaPay]);
 }
 
 async function saveDashNote(note) {
