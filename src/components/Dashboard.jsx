@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { fmt, pct } from '../utils/format';
 import { categoryColors } from '../data/budgetData';
 import { computeAllMonths, computeMonthFinancials, computeCarryover } from '../utils/computeMonth';
@@ -6,6 +6,11 @@ import { computeAllMonths, computeMonthFinancials, computeCarryover } from '../u
 export default function Dashboard({ bills, debts, months, dashNote, setDashNote }) {
   const [editingNote, setEditingNote] = useState(false);
   const [noteInput, setNoteInput] = useState(dashNote || '');
+
+  // Sync noteInput when dashNote loads from DB
+  useEffect(() => {
+    if (dashNote && !editingNote) setNoteInput(dashNote);
+  }, [dashNote]);
   const totalBills = bills.reduce((s, b) => s + b.amount, 0);
 
   const allMonths = useMemo(() => computeAllMonths(months, bills), [months, bills]);
@@ -74,8 +79,10 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
             onKeyDown={e => {
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                setDashNote(noteInput.trim());
+                const val = noteInput.trim();
+                setDashNote(val);
                 setEditingNote(false);
+                fetch('/api/data/dash_note', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(val) }).catch(() => {});
               }
               if (e.key === 'Escape') {
                 setNoteInput(dashNote || '');
@@ -86,9 +93,18 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
             rows={2}
           />
           <div className="flex gap-2" style={{ marginTop: 8 }}>
-            <button className="btn-primary btn-sm" onClick={() => { setDashNote(noteInput.trim()); setEditingNote(false); }}>Save</button>
+            <button className="btn-primary btn-sm" onClick={() => {
+              const val = noteInput.trim();
+              setDashNote(val);
+              setEditingNote(false);
+              // Immediate DB flush
+              fetch('/api/data/dash_note', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(val) }).catch(() => {});
+            }}>Save</button>
             <button className="btn-ghost btn-sm" onClick={() => { setNoteInput(dashNote || ''); setEditingNote(false); }}>Cancel</button>
-            {dashNote && <button className="btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => { setDashNote(''); setNoteInput(''); setEditingNote(false); }}>Delete</button>}
+            {dashNote && <button className="btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => {
+              setDashNote(''); setNoteInput(''); setEditingNote(false);
+              fetch('/api/data/dash_note', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify('') }).catch(() => {});
+            }}>Delete</button>}
           </div>
         </div>
       ) : dashNote ? (
