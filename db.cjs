@@ -695,7 +695,14 @@ const savers = {
 
 // ── History helpers ──
 
+// Keys that should skip the next pushHistory call (set after undo/redo)
+const skipHistoryKeys = new Set();
+
 async function pushHistory(dataKey) {
+  if (skipHistoryKeys.has(dataKey)) {
+    skipHistoryKeys.delete(dataKey);
+    return;
+  }
   // Save current state as a snapshot before it changes
   const loader = loaders[dataKey];
   if (!loader) return;
@@ -750,6 +757,11 @@ async function undo(dataKey) {
   // Remove used history entry
   await pool.query('DELETE FROM change_history WHERE id = $1', [rows[0].id]);
 
+  // Skip next pushHistory for this key (the frontend will re-save the restored data)
+  skipHistoryKeys.add(dataKey);
+  // Auto-clear after 5 seconds in case the save never comes
+  setTimeout(() => skipHistoryKeys.delete(dataKey), 5000);
+
   return snapshot;
 }
 
@@ -777,6 +789,10 @@ async function redo(dataKey) {
 
   // Remove used redo entry
   await pool.query('DELETE FROM redo_history WHERE id = $1', [rows[0].id]);
+
+  // Skip next pushHistory for this key
+  skipHistoryKeys.add(dataKey);
+  setTimeout(() => skipHistoryKeys.delete(dataKey), 5000);
 
   return snapshot;
 }
