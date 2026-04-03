@@ -368,7 +368,9 @@ async function migrateIfNeeded() {
 
       for (const p of (m.paychecks || [])) {
         const person = p.person || 'Brandon';
-        const payType = person === 'Chelsea' ? 'regular' : (p.type || 'small');
+        let payType = p.type || 'small';
+        if (person === 'Chelsea') payType = 'regular';
+        if (payType === 'semi-monthly') payType = 'regular';
         const tId = await getOrCreateTemplate(person, payType, tmplMap);
         await pool.query(
           'INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
@@ -575,7 +577,9 @@ async function saveMonths(months) {
 
     for (const p of (m.paychecks || [])) {
       const person = p.person || 'Brandon';
-      const payType = person === 'Chelsea' ? 'regular' : (p.type || 'small');
+      let payType = p.type || 'small';
+      if (person === 'Chelsea') payType = 'regular';
+      if (payType === 'semi-monthly') payType = 'regular';
       const tId = await getOrCreateTemplate(person, payType, tmplMap);
       await pool.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
         [mid, tId, p.date || '', p.amount]);
