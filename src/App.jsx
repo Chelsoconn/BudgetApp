@@ -189,7 +189,7 @@ function AuthenticatedApp({ onLogout }) {
       </nav>
 
       <main className="main">
-        {location.pathname !== '/chat' && <UndoRedo onRestore={(key, data) => {
+        {!location.pathname.startsWith('/chat') && <UndoRedo onRestore={(key, data) => {
           // Cancel ALL pending saves first to prevent overwrites
           cancelBills();
           cancelDebts();
