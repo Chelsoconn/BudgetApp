@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Routes, Route, NavLink, Navigate } from 'react-router-dom';
+import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom';
 import './App.css';
 import { initialBills, initialDebts, initialMonths, brandonSmall, brandonBig, chelseaPaycheck } from './data/budgetData';
 import { usePersistedState } from './hooks/usePersistedState';
@@ -39,6 +39,7 @@ const NAV_BUDGET = [
 ];
 
 function App() {
+  const location = useLocation();
   const [authed, setAuthed] = useState(null);
 
   useEffect(() => {
@@ -188,7 +189,7 @@ function AuthenticatedApp({ onLogout }) {
       </nav>
 
       <main className="main">
-        <UndoRedo onRestore={(key, data) => {
+        {location.pathname !== '/chat' && <UndoRedo onRestore={(key, data) => {
           // Cancel ALL pending saves first to prevent overwrites
           cancelBills();
           cancelDebts();
@@ -205,7 +206,7 @@ function AuthenticatedApp({ onLogout }) {
             setters[key](data);
             try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
           }
-        }} />
+        }} />}
         <Routes>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard bills={bills} debts={debts} months={months} dashNote={dashNote} setDashNote={setDashNote} />} />
@@ -214,7 +215,7 @@ function AuthenticatedApp({ onLogout }) {
           <Route path="/monthly/:monthSlug" element={<MonthlyBudget bills={bills} months={months} setMonths={setMonths} paycheckConfig={paycheckConfig} />} />
           <Route path="/debt" element={<Debt debts={debts} setDebts={setDebts} />} />
           <Route path="/salary" element={<SalaryCalc paycheckConfig={paycheckConfig} setPaycheckConfig={setPaycheckConfig} months={months} setMonths={setMonths} />} />
-          <Route path="/chat" element={<Chat bills={bills} debts={debts} months={months} paycheckConfig={paycheckConfig} chatMessages={chatMessages} setChatMessages={setChatMessages} bizExpenses={bizExpenses} />} />
+          <Route path="/chat" element={<Chat chatMessages={chatMessages} setChatMessages={setChatMessages} />} />
           <Route path="/business" element={<BusinessExpenses bizExpenses={bizExpenses} setBizExpenses={setBizExpenses} />} />
           <Route path="/schedule" element={<Schedule sitterCoverage={sitterCoverage} setSitterCoverage={setSitterCoverage} />} />
           <Route path="/playgrounds" element={

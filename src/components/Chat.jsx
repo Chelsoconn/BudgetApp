@@ -1,118 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { fmt } from '../utils/format';
-import { computeAllMonths } from '../utils/computeMonth';
 
-function buildScheduleContext() {
-  // Brandon's rotation
-  const ANCHOR = new Date(2026, 2, 26);
-  const CYCLE = 21, WORK = 14;
-  const today = new Date();
-  const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  let diff = Math.floor((todayMid - ANCHOR) / 86400000);
-  diff = ((diff % CYCLE) + CYCLE) % CYCLE;
-  const brandonStatus = diff < WORK ? 'At Work' : 'Home';
-  const daysLeft = diff < WORK ? WORK - diff : CYCLE - diff;
-
-  // Kids school days off (Lake Travis ISD)
-  const kidsOff = [
-    // 2025-2026
-    'Sep 1 2025 (Labor Day)', 'Oct 10 2025', 'Oct 13 2025', 'Nov 24-28 2025 (Thanksgiving)',
-    'Dec 22-31 2025 (Winter Break)', 'Jan 1-2 2026 (Winter Break)', 'Jan 5-7 2026 (Prof Dev)',
-    'Feb 13 2026', 'Feb 16 2026', 'Mar 16-20 2026 (Spring Break)', 'Mar 23 2026',
-    'Apr 3 2026 (Student Holiday)', 'May 25 2026 (Memorial Day)',
-    'May 23 - Aug 11 2026 (Summer Break)',
-    // 2026-2027
-    'Sep 7 2026 (Labor Day)', 'Sep 21 2026 (Yom Kippur)', 'Oct 9 2026 (Conferences)', 'Oct 12 2026 (Columbus Day)',
-    'Oct 30 2026', 'Nov 2 2026 (Conferences)', 'Nov 23-27 2026 (Thanksgiving)',
-    'Dec 18-31 2026 (Winter Break)', 'Jan 1 2027 (Winter Break)', 'Jan 4-5 2027', 'Jan 18 2027 (MLK Day)',
-    'Feb 11-12 2027', 'Feb 15 2027 (Presidents Day)', 'Mar 15-19 2027 (Spring Break)',
-    'Mar 26 2027 (Good Friday)', 'Apr 23 2027', 'Apr 26 2027', 'May 31 2027 (Memorial Day)',
-    'May 28 - Jul 31 2027 (Summer Break)',
-  ];
-
-  const kidsEarly = [
-    'Aug 13 2025', 'Sep 22 2025', 'Oct 22 2025', 'Dec 19 2025', 'Feb 12 2026',
-    'Mar 13 2026', 'May 15 2026', 'May 22 2026 (last day)',
-    'May 27 2027 (last day)',
-  ];
-
-  const chelseaOff = [
-    "New Year's Day", 'MLK Day', 'Memorial Day', 'Independence Day',
-    'Labor Day', 'Thanksgiving', 'Christmas',
-  ];
-
-  return `FAMILY SCHEDULE:
-Brandon (dad): 14 days work / 7 days home rotation. Currently: ${brandonStatus} (${daysLeft} days left in stretch). Anchor: Mar 26 2026.
-Chelsea (mom): Off on federal holidays each year: ${chelseaOff.join(', ')}.
-Maka & Jack (kids, Lake Travis ISD):
-  Days off: ${kidsOff.join('; ')}
-  Early release days: ${kidsEarly.join('; ')}`;
-}
-
-function buildBizContext(bizExpenses) {
-  const items = bizExpenses?.items || [];
-  if (items.length === 0) return '';
-  const total = items.reduce((s, i) => s + i.amount, 0);
-  const byCategory = {};
-  items.forEach(i => { byCategory[i.category] = (byCategory[i.category] || 0) + i.amount; });
-  const catLines = Object.entries(byCategory).sort((a, b) => b[1] - a[1])
-    .map(([cat, amt]) => `  ${cat}: ${fmt(amt)} (${Math.round(amt / total * 100)}%)`)
-    .join('\n');
-  const itemLines = items.map(i => `  ${i.date || 'no date'} | ${i.description} | ${i.category} | ${fmt(i.amount)}`).join('\n');
-  return `\n\nBUSINESS EXPENSES (${fmt(total)} total, ${items.length} items):
-By category:\n${catLines}
-All items:\n${itemLines}`;
-}
-
-function buildBudgetContext(bills, debts, months, paycheckConfig) {
-  const allMonths = computeAllMonths(months, bills);
-
-  const billsSummary = bills.map((b) => `${b.name}: ${fmt(b.amount)}/mo (${b.category})`).join('\n');
-  const billsTotal = bills.reduce((s, b) => s + b.amount, 0);
-
-  const debtLines = [
-    ...debts.vehicles.map((d) => `Vehicle - ${d.name}: ${fmt(d.amount)}`),
-    ...debts.studentLoans.map((d) => `Student Loan - ${d.name}: ${fmt(d.amount)}`),
-    ...debts.creditCards.map((d) => `Credit Card - ${d.name}: ${fmt(d.amount)}${d.limit ? ` (limit ${fmt(d.limit)})` : ''}`),
-    ...debts.medicalDebt.filter((d) => d.amount > 0).map((d) => `Medical - ${d.name}: ${fmt(d.amount)}`),
-  ].join('\n');
-  const totalDebt = Object.values(debts).flat().reduce((s, d) => s + d.amount, 0);
-
-  const monthLines = allMonths.map((m) => {
-    const mo = months.find((x) => x.name === m.name && x.year === m.year);
-    const expenses = (mo?.expenses ?? []).map((e) => `${e.label}: ${fmt(e.amount)}`).join(', ');
-    const income = mo?.paychecks.reduce((s, p) => s + p.amount, 0) ?? 0;
-    const brandonCount = mo?.paychecks.filter((p) => p.person === 'Brandon').length ?? 0;
-    const chelseaCount = mo?.paychecks.filter((p) => p.person === 'Chelsea').length ?? 0;
-    return `${m.name} ${m.year}: Income ${fmt(income)} (${brandonCount} Brandon + ${chelseaCount} Chelsea checks), Expenses: ${expenses}, Bills: ${fmt(m.totalExpenses)}, Final: ${fmt(m.monthFinal)}`;
-  }).join('\n');
-
-  const dec26 = allMonths.find((m) => m.name === 'December' && m.year === 2026);
-  const dec27 = allMonths.find((m) => m.name === 'December' && m.year === 2027);
-
-  return `PAYCHECK CONFIG:
-Brandon small (weekly): ${fmt(paycheckConfig.brandonSmall)}
-Brandon big (every 3rd week): ${fmt(paycheckConfig.brandonBig)}
-Chelsea (15th + last day): ${fmt(paycheckConfig.chelseaPay)}
-
-MONTHLY BILLS (${fmt(billsTotal)}/mo total):
-${billsSummary}
-
-DEBTS (${fmt(totalDebt)} total):
-${debtLines}
-
-MONTHLY BREAKDOWN:
-${monthLines}
-
-MILESTONES:
-End of 2026: ${dec26 ? fmt(dec26.monthFinal) : 'N/A'}
-End of 2027: ${dec27 ? fmt(dec27.monthFinal) : 'N/A'}
-Average overage/month: ${dec27 ? fmt(dec27.monthFinal / months.length) : 'N/A'}
-
-${buildScheduleContext()}`;
-}
-
-export default function Chat({ bills, debts, months, paycheckConfig, chatMessages, setChatMessages, bizExpenses }) {
+export default function Chat({ chatMessages, setChatMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -136,14 +24,10 @@ export default function Chat({ bills, debts, months, paycheckConfig, chatMessage
     setError('');
 
     try {
-      const budgetContext = buildBudgetContext(bills, debts, months, paycheckConfig) + buildBizContext(bizExpenses);
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: updated.slice(-20), // last 20 messages for context window
-          budgetContext,
-        }),
+        body: JSON.stringify({ messages: updated.slice(-20) }),
       });
 
       if (!res.ok) {

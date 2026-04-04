@@ -98,8 +98,8 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS month_paid_bills (
       id SERIAL PRIMARY KEY,
       month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
-      bill_app_id INT NOT NULL,
-      UNIQUE (month_id, bill_app_id)
+      bill_id INT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+      UNIQUE (month_id, bill_id)
     )
   `);
 
@@ -107,9 +107,9 @@ async function initDb() {
     CREATE TABLE IF NOT EXISTS month_bill_overrides (
       id SERIAL PRIMARY KEY,
       month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
-      bill_app_id INT NOT NULL,
+      bill_id INT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
       amount NUMERIC(12,2) NOT NULL,
-      UNIQUE (month_id, bill_app_id)
+      UNIQUE (month_id, bill_id)
     )
   `);
 
@@ -142,33 +142,24 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       description TEXT NOT NULL,
       amount NUMERIC(12,2) NOT NULL DEFAULT 0,
-      category TEXT DEFAULT 'Other',
+      category_id INT REFERENCES biz_categories(id),
       expense_date TEXT DEFAULT '',
       app_id BIGINT
     )
   `);
 
   await pool.query(`
-    CREATE TABLE IF NOT EXISTS change_history (
+    CREATE TABLE IF NOT EXISTS history (
       id SERIAL PRIMARY KEY,
       data_key TEXT NOT NULL,
+      type TEXT NOT NULL DEFAULT 'undo',
       snapshot JSONB NOT NULL,
       created_at TIMESTAMPTZ DEFAULT NOW()
     )
   `);
 
-  // Index for fast lookups by key
   await pool.query(`
-    CREATE INDEX IF NOT EXISTS idx_change_history_key ON change_history(data_key, id DESC)
-  `);
-
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS redo_history (
-      id SERIAL PRIMARY KEY,
-      data_key TEXT NOT NULL,
-      snapshot JSONB NOT NULL,
-      created_at TIMESTAMPTZ DEFAULT NOW()
-    )
+    CREATE INDEX IF NOT EXISTS idx_history_key_type ON history(data_key, type, id DESC)
   `);
 
   await pool.query(`
@@ -198,8 +189,128 @@ async function initDb() {
     console.log('Migrated paycheck config to paycheck_templates table.');
   }
 
+  // Normalize: merge change_history + redo_history into history table
+  await migrateHistoryTable();
+
+  // Normalize: bill_app_id → bill_id FK, biz_expenses.category → category_id FK
+  await migrateToProperFKs();
+
   // Clean up old budget_data blobs now that everything is normalized
   await pool.query("DELETE FROM budget_data WHERE key NOT IN ('budget_data_version')");
+}
+
+/**
+ * Merge change_history + redo_history into unified history table.
+ */
+async function migrateHistoryTable() {
+  const { rows: oldTables } = await pool.query(`
+    SELECT table_name FROM information_schema.tables
+    WHERE table_name = 'change_history' AND table_schema = 'public'
+  `);
+  if (oldTables.length === 0) return; // Already migrated or fresh install
+
+  console.log('Migrating change_history + redo_history into history table...');
+  await pool.query(`
+    INSERT INTO history (data_key, type, snapshot, created_at)
+    SELECT data_key, 'undo', snapshot, created_at FROM change_history
+    ORDER BY id
+  `);
+  await pool.query(`
+    INSERT INTO history (data_key, type, snapshot, created_at)
+    SELECT data_key, 'redo', snapshot, created_at FROM redo_history
+    ORDER BY id
+  `);
+  await pool.query('DROP TABLE change_history');
+  await pool.query('DROP TABLE redo_history');
+  console.log('History table migration complete.');
+}
+
+/**
+ * Migrate bill_app_id → bill_id (proper FK) and biz_expenses.category → category_id.
+ */
+async function migrateToProperFKs() {
+  // Check if month_paid_bills still has bill_app_id column
+  const { rows: cols } = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'month_paid_bills' AND column_name = 'bill_app_id'
+  `);
+  if (cols.length > 0) {
+    console.log('Migrating bill_app_id → bill_id...');
+    // Build app_id → id lookup
+    const { rows: bills } = await pool.query('SELECT id, app_id FROM bills');
+    const billMap = Object.fromEntries(bills.map(b => [b.app_id, b.id]));
+
+    // month_paid_bills
+    const { rows: paidRows } = await pool.query('SELECT month_id, bill_app_id FROM month_paid_bills');
+    await pool.query('DROP TABLE month_paid_bills CASCADE');
+    await pool.query(`
+      CREATE TABLE month_paid_bills (
+        id SERIAL PRIMARY KEY,
+        month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+        bill_id INT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+        UNIQUE (month_id, bill_id)
+      )
+    `);
+    for (const r of paidRows) {
+      const billId = billMap[r.bill_app_id];
+      if (billId) await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [r.month_id, billId]);
+    }
+
+    // month_bill_overrides
+    const { rows: overrideRows } = await pool.query('SELECT month_id, bill_app_id, amount FROM month_bill_overrides');
+    await pool.query('DROP TABLE month_bill_overrides CASCADE');
+    await pool.query(`
+      CREATE TABLE month_bill_overrides (
+        id SERIAL PRIMARY KEY,
+        month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+        bill_id INT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+        amount NUMERIC(12,2) NOT NULL,
+        UNIQUE (month_id, bill_id)
+      )
+    `);
+    for (const r of overrideRows) {
+      const billId = billMap[r.bill_app_id];
+      if (billId) await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [r.month_id, billId, r.amount]);
+    }
+    console.log('bill_id FK migration complete.');
+  }
+
+  // Check if biz_expenses still has text category column
+  const { rows: bizCols } = await pool.query(`
+    SELECT data_type FROM information_schema.columns
+    WHERE table_name = 'biz_expenses' AND column_name = 'category'
+  `);
+  if (bizCols.length > 0 && bizCols[0].data_type === 'text') {
+    console.log('Migrating biz_expenses.category → category_id...');
+    const { rows: expRows } = await pool.query('SELECT id, app_id, description, amount, category, expense_date FROM biz_expenses');
+
+    // Ensure all categories exist
+    const cats = [...new Set(expRows.map(e => e.category).filter(Boolean))];
+    for (const cat of cats) {
+      await pool.query('INSERT INTO biz_categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [cat]);
+    }
+    const { rows: catRows } = await pool.query('SELECT id, name FROM biz_categories');
+    const catMap = Object.fromEntries(catRows.map(c => [c.name, c.id]));
+
+    await pool.query('DROP TABLE biz_expenses CASCADE');
+    await pool.query(`
+      CREATE TABLE biz_expenses (
+        id SERIAL PRIMARY KEY,
+        description TEXT NOT NULL,
+        amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+        category_id INT REFERENCES biz_categories(id),
+        expense_date TEXT DEFAULT '',
+        app_id BIGINT
+      )
+    `);
+    for (const e of expRows) {
+      await pool.query(
+        'INSERT INTO biz_expenses (app_id, description, amount, category_id, expense_date) VALUES ($1, $2, $3, $4, $5)',
+        [e.app_id, e.description, e.amount, catMap[e.category] || null, e.expense_date]
+      );
+    }
+    console.log('biz_expenses category_id migration complete.');
+  }
 }
 
 /**
@@ -297,6 +408,7 @@ async function migrateToSerialPKs() {
   }
 
   // --- month_paid_bills: add id, change PK ---
+  // Note: still uses bill_app_id at this stage; migrateToProperFKs will convert to bill_id later
   const { rows: oldPaidBills } = await pool.query('SELECT month_id, bill_app_id FROM month_paid_bills');
   await pool.query('DROP TABLE IF EXISTS month_paid_bills CASCADE');
   await pool.query(`
@@ -415,12 +527,18 @@ async function migrateIfNeeded() {
         );
       }
 
-      for (const billId of (m.paidBills || [])) {
-        await pool.query('INSERT INTO month_paid_bills (month_id, bill_app_id) VALUES ($1, $2)', [mid, billId]);
+      // Look up bill DB ids from app_ids for paid bills and overrides
+      const { rows: billLookup } = await pool.query('SELECT id, app_id FROM bills');
+      const bMap = Object.fromEntries(billLookup.map(b => [b.app_id, b.id]));
+
+      for (const appId of (m.paidBills || [])) {
+        const bId = bMap[appId];
+        if (bId) await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, bId]);
       }
 
-      for (const [billId, amt] of Object.entries(m.billOverrides || {})) {
-        await pool.query('INSERT INTO month_bill_overrides (month_id, bill_app_id, amount) VALUES ($1, $2, $3)', [mid, parseInt(billId), amt]);
+      for (const [appId, amt] of Object.entries(m.billOverrides || {})) {
+        const bId = bMap[parseInt(appId)];
+        if (bId) await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, bId, amt]);
       }
     }
   }
@@ -447,10 +565,12 @@ async function migrateIfNeeded() {
     for (const cat of (data.biz_expenses.categories || [])) {
       await pool.query('INSERT INTO biz_categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [cat]);
     }
+    const { rows: bizCatRows } = await pool.query('SELECT id, name FROM biz_categories');
+    const bizCatMap = Object.fromEntries(bizCatRows.map(c => [c.name, c.id]));
     for (const item of (data.biz_expenses.items || [])) {
       await pool.query(
-        'INSERT INTO biz_expenses (app_id, description, amount, category, expense_date) VALUES ($1, $2, $3, $4, $5)',
-        [item.id, item.description, item.amount, item.category, item.date || '']
+        'INSERT INTO biz_expenses (app_id, description, amount, category_id, expense_date) VALUES ($1, $2, $3, $4, $5)',
+        [item.id, item.description, item.amount, bizCatMap[item.category] || null, item.date || '']
       );
     }
   }
@@ -489,8 +609,10 @@ async function loadMonths() {
     const { rows: paychecks } = await pool.query('SELECT * FROM paychecks WHERE month_id = $1 ORDER BY id', [m.id]);
     const { rows: expenses } = await pool.query('SELECT * FROM month_expenses WHERE month_id = $1 ORDER BY id', [m.id]);
     const { rows: adjustments } = await pool.query('SELECT * FROM month_adjustments WHERE month_id = $1 ORDER BY id', [m.id]);
-    const { rows: paidBills } = await pool.query('SELECT bill_app_id FROM month_paid_bills WHERE month_id = $1', [m.id]);
-    const { rows: overrides } = await pool.query('SELECT bill_app_id, amount FROM month_bill_overrides WHERE month_id = $1', [m.id]);
+    const { rows: paidBills } = await pool.query(
+      'SELECT b.app_id AS bill_app_id FROM month_paid_bills mp JOIN bills b ON b.id = mp.bill_id WHERE mp.month_id = $1', [m.id]);
+    const { rows: overrides } = await pool.query(
+      'SELECT b.app_id AS bill_app_id, mo.amount FROM month_bill_overrides mo JOIN bills b ON b.id = mo.bill_id WHERE mo.month_id = $1', [m.id]);
 
     const month = {
       id: m.app_id, name: m.name, year: m.year, notes: m.notes || '',
@@ -538,10 +660,12 @@ async function loadSitterCoverage() {
 
 async function loadBizExpenses() {
   const { rows: cats } = await pool.query('SELECT name FROM biz_categories ORDER BY id');
-  const { rows: items } = await pool.query('SELECT * FROM biz_expenses ORDER BY id');
+  const { rows: items } = await pool.query(
+    'SELECT e.*, c.name AS category_name FROM biz_expenses e LEFT JOIN biz_categories c ON c.id = e.category_id ORDER BY e.id'
+  );
   return {
     categories: cats.map(c => c.name),
-    items: items.map(i => ({ id: i.app_id || i.id, description: i.description, amount: Number(i.amount), category: i.category, date: i.expense_date })),
+    items: items.map(i => ({ id: i.app_id || i.id, description: i.description, amount: Number(i.amount), category: i.category_name || 'Other', date: i.expense_date })),
   };
 }
 
@@ -585,6 +709,10 @@ async function saveMonths(months) {
   const tmplMap = {};
   for (const t of tmplRows) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
 
+  // Build bill app_id -> id lookup
+  const { rows: billRows } = await pool.query('SELECT id, app_id FROM bills');
+  const billMap = Object.fromEntries(billRows.map(b => [b.app_id, b.id]));
+
   // Delete all and re-insert (simplest for full replacement)
   await pool.query('DELETE FROM months');
 
@@ -613,11 +741,13 @@ async function saveMonths(months) {
     for (const a of (m.adjustments || [])) {
       await pool.query('INSERT INTO month_adjustments (month_id, label, amount) VALUES ($1, $2, $3)', [mid, a.label, a.amount]);
     }
-    for (const billId of (m.paidBills || [])) {
-      await pool.query('INSERT INTO month_paid_bills (month_id, bill_app_id) VALUES ($1, $2)', [mid, billId]);
+    for (const appId of (m.paidBills || [])) {
+      const bId = billMap[appId];
+      if (bId) await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, bId]);
     }
-    for (const [billId, amt] of Object.entries(m.billOverrides || {})) {
-      await pool.query('INSERT INTO month_bill_overrides (month_id, bill_app_id, amount) VALUES ($1, $2, $3)', [mid, parseInt(billId), amt]);
+    for (const [appId, amt] of Object.entries(m.billOverrides || {})) {
+      const bId = billMap[parseInt(appId)];
+      if (bId) await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, bId, amt]);
     }
   }
 }
@@ -643,14 +773,18 @@ async function saveSitterCoverage(coverage) {
 }
 
 async function saveBizExpenses(biz) {
+  await pool.query('DELETE FROM biz_expenses');
   await pool.query('DELETE FROM biz_categories');
   for (const cat of (biz.categories || [])) {
     await pool.query('INSERT INTO biz_categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [cat]);
   }
-  await pool.query('DELETE FROM biz_expenses');
+  // Build category name → id lookup
+  const { rows: catRows } = await pool.query('SELECT id, name FROM biz_categories');
+  const catMap = Object.fromEntries(catRows.map(c => [c.name, c.id]));
+
   for (const item of (biz.items || [])) {
-    await pool.query('INSERT INTO biz_expenses (app_id, description, amount, category, expense_date) VALUES ($1, $2, $3, $4, $5)',
-      [item.id, item.description, item.amount, item.category, item.date || '']);
+    await pool.query('INSERT INTO biz_expenses (app_id, description, amount, category_id, expense_date) VALUES ($1, $2, $3, $4, $5)',
+      [item.id, item.description, item.amount, catMap[item.category] || null, item.date || '']);
   }
 }
 
@@ -715,23 +849,23 @@ async function pushHistory(dataKey) {
 
     // Don't push if identical to the most recent snapshot
     const { rows: last } = await pool.query(
-      'SELECT snapshot FROM change_history WHERE data_key = $1 ORDER BY id DESC LIMIT 1',
+      "SELECT snapshot FROM history WHERE data_key = $1 AND type = 'undo' ORDER BY id DESC LIMIT 1",
       [dataKey]
     );
     if (last.length > 0 && JSON.stringify(last[0].snapshot) === currentJson) return;
 
     await pool.query(
-      'INSERT INTO change_history (data_key, snapshot) VALUES ($1, $2)',
+      "INSERT INTO history (data_key, type, snapshot) VALUES ($1, 'undo', $2)",
       [dataKey, currentJson]
     );
     // Keep only last 20
     await pool.query(`
-      DELETE FROM change_history WHERE id NOT IN (
-        SELECT id FROM change_history WHERE data_key = $1 ORDER BY id DESC LIMIT 20
-      ) AND data_key = $1
+      DELETE FROM history WHERE id NOT IN (
+        SELECT id FROM history WHERE data_key = $1 AND type = 'undo' ORDER BY id DESC LIMIT 20
+      ) AND data_key = $1 AND type = 'undo'
     `, [dataKey]);
     // Clear redo stack when new change is made
-    await pool.query('DELETE FROM redo_history WHERE data_key = $1', [dataKey]);
+    await pool.query("DELETE FROM history WHERE data_key = $1 AND type = 'redo'", [dataKey]);
   } catch (e) {
     console.error('pushHistory error:', e.message);
   }
@@ -744,7 +878,7 @@ async function undo(dataKey) {
   if (!loader || !saver) return null;
 
   const { rows } = await pool.query(
-    'SELECT id, snapshot FROM change_history WHERE data_key = $1 ORDER BY id DESC LIMIT 1',
+    "SELECT id, snapshot FROM history WHERE data_key = $1 AND type = 'undo' ORDER BY id DESC LIMIT 1",
     [dataKey]
   );
   if (rows.length === 0) return null;
@@ -752,14 +886,14 @@ async function undo(dataKey) {
   // Save current to redo
   const current = await loader();
   await pool.query(
-    'INSERT INTO redo_history (data_key, snapshot) VALUES ($1, $2)',
+    "INSERT INTO history (data_key, type, snapshot) VALUES ($1, 'redo', $2)",
     [dataKey, JSON.stringify(current)]
   );
   // Keep only last 20 redo
   await pool.query(`
-    DELETE FROM redo_history WHERE id NOT IN (
-      SELECT id FROM redo_history WHERE data_key = $1 ORDER BY id DESC LIMIT 20
-    ) AND data_key = $1
+    DELETE FROM history WHERE id NOT IN (
+      SELECT id FROM history WHERE data_key = $1 AND type = 'redo' ORDER BY id DESC LIMIT 20
+    ) AND data_key = $1 AND type = 'redo'
   `, [dataKey]);
 
   // Restore the snapshot
@@ -767,7 +901,7 @@ async function undo(dataKey) {
   await saver(snapshot);
 
   // Remove used history entry
-  await pool.query('DELETE FROM change_history WHERE id = $1', [rows[0].id]);
+  await pool.query('DELETE FROM history WHERE id = $1', [rows[0].id]);
 
   // Skip next pushHistory for this key (the frontend will re-save the restored data)
   skipHistoryKeys.add(dataKey);
@@ -783,15 +917,15 @@ async function redo(dataKey) {
   if (!loader || !saver) return null;
 
   const { rows } = await pool.query(
-    'SELECT id, snapshot FROM redo_history WHERE data_key = $1 ORDER BY id DESC LIMIT 1',
+    "SELECT id, snapshot FROM history WHERE data_key = $1 AND type = 'redo' ORDER BY id DESC LIMIT 1",
     [dataKey]
   );
   if (rows.length === 0) return null;
 
-  // Save current to history
+  // Save current to undo history
   const current = await loader();
   await pool.query(
-    'INSERT INTO change_history (data_key, snapshot) VALUES ($1, $2)',
+    "INSERT INTO history (data_key, type, snapshot) VALUES ($1, 'undo', $2)",
     [dataKey, JSON.stringify(current)]
   );
 
@@ -800,7 +934,7 @@ async function redo(dataKey) {
   await saver(snapshot);
 
   // Remove used redo entry
-  await pool.query('DELETE FROM redo_history WHERE id = $1', [rows[0].id]);
+  await pool.query('DELETE FROM history WHERE id = $1', [rows[0].id]);
 
   // Skip next pushHistory for this key
   skipHistoryKeys.add(dataKey);
@@ -810,8 +944,8 @@ async function redo(dataKey) {
 }
 
 async function getHistoryCounts(dataKey) {
-  const { rows: [h] } = await pool.query('SELECT COUNT(*) as c FROM change_history WHERE data_key = $1', [dataKey]);
-  const { rows: [r] } = await pool.query('SELECT COUNT(*) as c FROM redo_history WHERE data_key = $1', [dataKey]);
+  const { rows: [h] } = await pool.query("SELECT COUNT(*) as c FROM history WHERE data_key = $1 AND type = 'undo'", [dataKey]);
+  const { rows: [r] } = await pool.query("SELECT COUNT(*) as c FROM history WHERE data_key = $1 AND type = 'redo'", [dataKey]);
   return { undoCount: parseInt(h.c), redoCount: parseInt(r.c) };
 }
 

@@ -234,37 +234,11 @@ function PgChat({ bills, debts, months, paycheckConfig }) {
     setError('');
 
     try {
-      const totalBills = bills.reduce((s, b) => s + b.amount, 0);
-      const allM = computeAllMonths(months, bills);
-      const dec27 = allM.find(m => m.name === 'December' && m.year === 2027);
-      const billLines = bills.map(b => `${b.name}: ${fmt(b.amount)}/mo`).join('\n');
-      const debtLines = Object.values(debts).flat().map(d => `${d.name}: ${fmt(d.amount)}`).join('\n');
-      const monthLines = allM.map(m => {
-        const mo = months.find(x => x.name === m.name && x.year === m.year);
-        const income = mo?.paychecks.reduce((s, p) => s + p.amount, 0) ?? 0;
-        return `${m.name} ${m.year}: Income ${fmt(income)}, Bills+Expenses: ${fmt(m.totalExpenses)}, Final: ${fmt(m.monthFinal)}`;
-      }).join('\n');
-      const budgetContext = `THIS IS A WHAT-IF SCENARIO (not the real budget). Analyze based on these scenario numbers only.
-
-SCENARIO BILLS (${fmt(totalBills)}/mo):
-${billLines}
-
-SCENARIO DEBTS:
-${debtLines}
-
-SCENARIO PAYCHECK CONFIG:
-Brandon small: ${fmt(paycheckConfig.brandonSmall)}, big: ${fmt(paycheckConfig.brandonBig)}
-Chelsea: ${fmt(paycheckConfig.chelseaPay)}/check
-
-SCENARIO MONTHLY BREAKDOWN:
-${monthLines}
-
-End of 2027: ${dec27 ? fmt(dec27.monthFinal) : 'N/A'}`;
-
+      const scenarioData = { bills, debts, months, paycheckConfig };
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: updated.slice(-20), budgetContext }),
+        body: JSON.stringify({ messages: updated.slice(-20), scenarioData }),
       });
       if (!res.ok) throw new Error('Request failed');
       const { reply } = await res.json();
