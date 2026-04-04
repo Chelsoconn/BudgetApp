@@ -53,10 +53,10 @@ function App() {
 }
 
 function AuthenticatedApp({ onLogout }) {
-  const [bills, setBillsRaw, snapshotBills, cancelBills] = usePersistedState('budget_bills', initialBills);
-  const [debts, setDebtsRaw, snapshotDebts, cancelDebts] = usePersistedState('budget_debts', initialDebts);
-  const [months, setMonthsRaw, snapshotMonths, cancelMonths] = usePersistedState('budget_months', initialMonths);
-  const [paycheckConfig, setPaycheckConfigRaw, snapshotPaycheck, cancelPaycheck] = usePersistedState('budget_paycheck_config', {
+  const [bills, setBillsRaw, snapshotBills, cancelBills, billsLoaded] = usePersistedState('budget_bills', initialBills);
+  const [debts, setDebtsRaw, snapshotDebts, cancelDebts, debtsLoaded] = usePersistedState('budget_debts', initialDebts);
+  const [months, setMonthsRaw, snapshotMonths, cancelMonths, monthsLoaded] = usePersistedState('budget_months', initialMonths);
+  const [paycheckConfig, setPaycheckConfigRaw, snapshotPaycheck, cancelPaycheck, paycheckLoaded] = usePersistedState('budget_paycheck_config', {
     brandonSmall,
     brandonBig,
     chelseaPay: chelseaPaycheck,
@@ -67,11 +67,21 @@ function AuthenticatedApp({ onLogout }) {
   const setDebts = useCallback((v) => { snapshotDebts(); setDebtsRaw(v); }, [snapshotDebts, setDebtsRaw]);
   const setMonths = useCallback((v) => { snapshotMonths(); setMonthsRaw(v); }, [snapshotMonths, setMonthsRaw]);
   const setPaycheckConfig = useCallback((v) => { snapshotPaycheck(); setPaycheckConfigRaw(v); }, [snapshotPaycheck, setPaycheckConfigRaw]);
-  const [playgrounds, setPlaygrounds] = usePersistedState('budget_playgrounds', []);
-  const [sitterCoverage, setSitterCoverage] = usePersistedState('sitter_coverage', {});
+  const [playgrounds, setPlaygrounds, , , playgroundsLoaded] = usePersistedState('budget_playgrounds', []);
+  const [sitterCoverage, setSitterCoverage, , , sitterLoaded] = usePersistedState('sitter_coverage', {});
   const [chatMessages, setChatMessages] = useState([]);
-  const [dashNote, setDashNote] = usePersistedState('dash_note', '');
-  const [bizExpenses, setBizExpenses] = usePersistedState('biz_expenses', { items: [], categories: ['Transportation','Equipment','Office Supplies','Software','Meals & Entertainment','Travel','Professional Services','Marketing','Other'] });
+  const [dashNote, setDashNote, , , dashLoaded] = usePersistedState('dash_note', '');
+  const [bizExpenses, setBizExpenses, , , bizLoaded] = usePersistedState('biz_expenses', { items: [], categories: ['Transportation','Equipment','Office Supplies','Software','Meals & Entertainment','Travel','Professional Services','Marketing','Other'] });
+
+  const allLoaded = billsLoaded && debtsLoaded && monthsLoaded && paycheckLoaded && playgroundsLoaded && sitterLoaded && dashLoaded && bizLoaded;
+
+  if (!allLoaded) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)' }}>
+        Loading budget data...
+      </div>
+    );
+  }
 
 
   return (

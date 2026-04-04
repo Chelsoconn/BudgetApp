@@ -82,7 +82,6 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
                 const val = noteInput.trim();
                 setDashNote(val);
                 setEditingNote(false);
-                fetch('/api/data/dash_note', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(val) }).catch(() => {});
               }
               if (e.key === 'Escape') {
                 setNoteInput(dashNote || '');
@@ -97,13 +96,10 @@ export default function Dashboard({ bills, debts, months, dashNote, setDashNote 
               const val = noteInput.trim();
               setDashNote(val);
               setEditingNote(false);
-              // Immediate DB flush
-              fetch('/api/data/dash_note', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(val) }).catch(() => {});
             }}>Save</button>
             <button className="btn-ghost btn-sm" onClick={() => { setNoteInput(dashNote || ''); setEditingNote(false); }}>Cancel</button>
             {dashNote && <button className="btn-ghost btn-sm" style={{ marginLeft: 'auto', color: 'var(--danger)' }} onClick={() => {
               setDashNote(''); setNoteInput(''); setEditingNote(false);
-              fetch('/api/data/dash_note', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify('') }).catch(() => {});
             }}>Delete</button>}
           </div>
         </div>

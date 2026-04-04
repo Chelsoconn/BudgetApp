@@ -506,7 +506,7 @@ async function migrateIfNeeded() {
         let payType = p.type || 'small';
         if (person === 'Chelsea') payType = 'regular';
         if (payType === 'semi-monthly') payType = 'regular';
-        const tId = await getOrCreateTemplate(person, payType, tmplMap);
+        const tId = await getOrCreateTemplate(pool, person, payType, tmplMap);
         await pool.query(
           'INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
           [mid, tId, p.date || '', p.amount]
@@ -670,32 +670,50 @@ async function loadBizExpenses() {
 }
 
 // ── Write helpers: decompose frontend JSON into normalized rows ──
+// All save functions use transactions so a crash mid-save can't leave partial data.
+
+async function withTransaction(fn) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await fn(client);
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+}
 
 async function saveBills(bills) {
-  await pool.query('DELETE FROM bills');
-  for (let i = 0; i < bills.length; i++) {
-    const b = bills[i];
-    await pool.query('INSERT INTO bills (app_id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
-      [b.id, b.name, b.amount, b.category || 'Other', i]);
-  }
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM bills');
+    for (let i = 0; i < bills.length; i++) {
+      const b = bills[i];
+      await client.query('INSERT INTO bills (app_id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
+        [b.id, b.name, b.amount, b.category || 'Other', i]);
+    }
+  });
 }
 
 async function saveDebts(debts) {
-  await pool.query('DELETE FROM debts');
-  const types = { vehicles: 'vehicle', studentLoans: 'student_loan', creditCards: 'credit_card', medicalDebt: 'medical' };
-  for (const [key, type] of Object.entries(types)) {
-    for (const d of (debts[key] || [])) {
-      await pool.query('INSERT INTO debts (app_id, name, amount, debt_type, credit_limit) VALUES ($1, $2, $3, $4, $5)',
-        [d.id, d.name, d.amount, type, d.limit || null]);
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM debts');
+    const types = { vehicles: 'vehicle', studentLoans: 'student_loan', creditCards: 'credit_card', medicalDebt: 'medical' };
+    for (const [key, type] of Object.entries(types)) {
+      for (const d of (debts[key] || [])) {
+        await client.query('INSERT INTO debts (app_id, name, amount, debt_type, credit_limit) VALUES ($1, $2, $3, $4, $5)',
+          [d.id, d.name, d.amount, type, d.limit || null]);
+      }
     }
-  }
+  });
 }
 
-async function getOrCreateTemplate(person, payType, tmplMap) {
+async function getOrCreateTemplate(clientOrPool, person, payType, tmplMap) {
   const key = `${person}_${payType}`;
   if (tmplMap[key]) return tmplMap[key];
-  // Auto-create missing template
-  const { rows: [row] } = await pool.query(
+  const { rows: [row] } = await clientOrPool.query(
     'INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ($1, $2, 0) ON CONFLICT (person, pay_type) DO UPDATE SET person=$1 RETURNING id',
     [person, payType]
   );
@@ -704,58 +722,61 @@ async function getOrCreateTemplate(person, payType, tmplMap) {
 }
 
 async function saveMonths(months) {
-  // Build template lookup: person+pay_type -> template_id
-  const { rows: tmplRows } = await pool.query('SELECT id, person, pay_type FROM paycheck_templates');
-  const tmplMap = {};
-  for (const t of tmplRows) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
+  await withTransaction(async (client) => {
+    // Build template lookup: person+pay_type -> template_id
+    const { rows: tmplRows } = await client.query('SELECT id, person, pay_type FROM paycheck_templates');
+    const tmplMap = {};
+    for (const t of tmplRows) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
 
-  // Build bill app_id -> id lookup
-  const { rows: billRows } = await pool.query('SELECT id, app_id FROM bills');
-  const billMap = Object.fromEntries(billRows.map(b => [b.app_id, b.id]));
+    // Build bill app_id -> id lookup
+    const { rows: billRows } = await client.query('SELECT id, app_id FROM bills');
+    const billMap = Object.fromEntries(billRows.map(b => [b.app_id, b.id]));
 
-  // Delete all and re-insert (simplest for full replacement)
-  await pool.query('DELETE FROM months');
+    await client.query('DELETE FROM months');
 
-  for (let i = 0; i < months.length; i++) {
-    const m = months[i];
-    const { rows: [inserted] } = await pool.query(
-      `INSERT INTO months (app_id, name, year, notes, bank_balance, amex_balance, carryover_override, income_override, expenses_override, sort_order)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
-      [m.id, m.name, m.year, m.notes || '', m.bankBalance ?? null, m.amexBalance ?? null,
-       m.carryoverOverride ?? null, m.incomeOverride ?? null, m.expensesOverride ?? null, i]
-    );
-    const mid = inserted.id;
+    for (let i = 0; i < months.length; i++) {
+      const m = months[i];
+      const { rows: [inserted] } = await client.query(
+        `INSERT INTO months (app_id, name, year, notes, bank_balance, amex_balance, carryover_override, income_override, expenses_override, sort_order)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [m.id, m.name, m.year, m.notes || '', m.bankBalance ?? null, m.amexBalance ?? null,
+         m.carryoverOverride ?? null, m.incomeOverride ?? null, m.expensesOverride ?? null, i]
+      );
+      const mid = inserted.id;
 
-    for (const p of (m.paychecks || [])) {
-      const person = p.person || 'Brandon';
-      let payType = p.type || 'small';
-      if (person === 'Chelsea') payType = 'regular';
-      if (payType === 'semi-monthly') payType = 'regular';
-      const tId = await getOrCreateTemplate(person, payType, tmplMap);
-      await pool.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
-        [mid, tId, p.date || '', p.amount]);
+      for (const p of (m.paychecks || [])) {
+        const person = p.person || 'Brandon';
+        let payType = p.type || 'small';
+        if (person === 'Chelsea') payType = 'regular';
+        if (payType === 'semi-monthly') payType = 'regular';
+        const tId = await getOrCreateTemplate(client, person, payType, tmplMap);
+        await client.query('INSERT INTO paychecks (month_id, template_id, pay_date, amount) VALUES ($1, $2, $3, $4)',
+          [mid, tId, p.date || '', p.amount]);
+      }
+      for (const e of (m.expenses || [])) {
+        await client.query('INSERT INTO month_expenses (month_id, label, amount) VALUES ($1, $2, $3)', [mid, e.label, e.amount]);
+      }
+      for (const a of (m.adjustments || [])) {
+        await client.query('INSERT INTO month_adjustments (month_id, label, amount) VALUES ($1, $2, $3)', [mid, a.label, a.amount]);
+      }
+      for (const appId of (m.paidBills || [])) {
+        const bId = billMap[appId];
+        if (bId) await client.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, bId]);
+      }
+      for (const [appId, amt] of Object.entries(m.billOverrides || {})) {
+        const bId = billMap[parseInt(appId)];
+        if (bId) await client.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, bId, amt]);
+      }
     }
-    for (const e of (m.expenses || [])) {
-      await pool.query('INSERT INTO month_expenses (month_id, label, amount) VALUES ($1, $2, $3)', [mid, e.label, e.amount]);
-    }
-    for (const a of (m.adjustments || [])) {
-      await pool.query('INSERT INTO month_adjustments (month_id, label, amount) VALUES ($1, $2, $3)', [mid, a.label, a.amount]);
-    }
-    for (const appId of (m.paidBills || [])) {
-      const bId = billMap[appId];
-      if (bId) await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, bId]);
-    }
-    for (const [appId, amt] of Object.entries(m.billOverrides || {})) {
-      const bId = billMap[parseInt(appId)];
-      if (bId) await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, bId, amt]);
-    }
-  }
+  });
 }
 
 async function savePaycheckConfig(config) {
-  await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.brandonSmall]);
-  await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.brandonBig]);
-  await pool.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.chelseaPay]);
+  await withTransaction(async (client) => {
+    await client.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'small', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.brandonSmall]);
+    await client.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Brandon', 'big', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.brandonBig]);
+    await client.query("INSERT INTO paycheck_templates (person, pay_type, amount) VALUES ('Chelsea', 'regular', $1) ON CONFLICT (person, pay_type) DO UPDATE SET amount = $1", [config.chelseaPay]);
+  });
 }
 
 async function saveDashNote(note) {
@@ -764,28 +785,31 @@ async function saveDashNote(note) {
 }
 
 async function saveSitterCoverage(coverage) {
-  await pool.query('DELETE FROM sitter_days');
-  for (const [dateKey, val] of Object.entries(coverage)) {
-    const covered = typeof val === 'boolean' ? val : val?.covered ?? false;
-    const note = typeof val === 'object' ? (val?.note || '') : '';
-    await pool.query('INSERT INTO sitter_days (date_key, covered, note) VALUES ($1, $2, $3)', [dateKey, covered, note]);
-  }
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM sitter_days');
+    for (const [dateKey, val] of Object.entries(coverage)) {
+      const covered = typeof val === 'boolean' ? val : val?.covered ?? false;
+      const note = typeof val === 'object' ? (val?.note || '') : '';
+      await client.query('INSERT INTO sitter_days (date_key, covered, note) VALUES ($1, $2, $3)', [dateKey, covered, note]);
+    }
+  });
 }
 
 async function saveBizExpenses(biz) {
-  await pool.query('DELETE FROM biz_expenses');
-  await pool.query('DELETE FROM biz_categories');
-  for (const cat of (biz.categories || [])) {
-    await pool.query('INSERT INTO biz_categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [cat]);
-  }
-  // Build category name → id lookup
-  const { rows: catRows } = await pool.query('SELECT id, name FROM biz_categories');
-  const catMap = Object.fromEntries(catRows.map(c => [c.name, c.id]));
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM biz_expenses');
+    await client.query('DELETE FROM biz_categories');
+    for (const cat of (biz.categories || [])) {
+      await client.query('INSERT INTO biz_categories (name) VALUES ($1) ON CONFLICT DO NOTHING', [cat]);
+    }
+    const { rows: catRows } = await client.query('SELECT id, name FROM biz_categories');
+    const catMap = Object.fromEntries(catRows.map(c => [c.name, c.id]));
 
-  for (const item of (biz.items || [])) {
-    await pool.query('INSERT INTO biz_expenses (app_id, description, amount, category_id, expense_date) VALUES ($1, $2, $3, $4, $5)',
-      [item.id, item.description, item.amount, catMap[item.category] || null, item.date || '']);
-  }
+    for (const item of (biz.items || [])) {
+      await client.query('INSERT INTO biz_expenses (app_id, description, amount, category_id, expense_date) VALUES ($1, $2, $3, $4, $5)',
+        [item.id, item.description, item.amount, catMap[item.category] || null, item.date || '']);
+    }
+  });
 }
 
 async function loadPlaygrounds() {
@@ -794,14 +818,16 @@ async function loadPlaygrounds() {
 }
 
 async function savePlaygrounds(playgrounds) {
-  await pool.query('DELETE FROM playgrounds');
-  for (const pg of (playgrounds || [])) {
-    const { id, name, createdAt, ...data } = pg;
-    await pool.query(
-      'INSERT INTO playgrounds (id, name, created_at, data) VALUES ($1, $2, $3, $4)',
-      [id, name, createdAt || new Date().toISOString(), data]
-    );
-  }
+  await withTransaction(async (client) => {
+    await client.query('DELETE FROM playgrounds');
+    for (const pg of (playgrounds || [])) {
+      const { id, name, createdAt, ...data } = pg;
+      await client.query(
+        'INSERT INTO playgrounds (id, name, created_at, data) VALUES ($1, $2, $3, $4)',
+        [id, name, createdAt || new Date().toISOString(), data]
+      );
+    }
+  });
 }
 
 // Key-to-loader/saver mapping
