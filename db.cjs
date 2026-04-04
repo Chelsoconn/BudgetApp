@@ -20,8 +20,7 @@ async function initDb() {
   // Normalized tables
   await pool.query(`
     CREATE TABLE IF NOT EXISTS bills (
-      id SERIAL PRIMARY KEY,
-      app_id INT NOT NULL,
+      id INT PRIMARY KEY,
       name TEXT NOT NULL,
       amount NUMERIC(12,2) NOT NULL DEFAULT 0,
       category TEXT DEFAULT 'Other',
@@ -195,6 +194,9 @@ async function initDb() {
   // Normalize: bill_app_id → bill_id FK, biz_expenses.category → category_id FK
   await migrateToProperFKs();
 
+  // Collapse bills.app_id into bills.id (remove serial, use app_id as PK)
+  await migrateBillsPK();
+
   // Clean up old budget_data blobs now that everything is normalized
   await pool.query("DELETE FROM budget_data WHERE key NOT IN ('budget_data_version')");
 }
@@ -311,6 +313,76 @@ async function migrateToProperFKs() {
     }
     console.log('biz_expenses category_id migration complete.');
   }
+}
+
+/**
+ * Collapse bills: drop serial id, make app_id the PK (renamed to id).
+ * FK tables (month_paid_bills, month_bill_overrides) get updated to reference the new id.
+ */
+async function migrateBillsPK() {
+  // Check if bills still has an app_id column
+  const { rows: cols } = await pool.query(`
+    SELECT column_name FROM information_schema.columns
+    WHERE table_name = 'bills' AND column_name = 'app_id'
+  `);
+  if (cols.length === 0) return; // Already migrated
+
+  console.log('Collapsing bills.app_id into bills.id...');
+
+  // Save all data
+  const { rows: bills } = await pool.query('SELECT app_id, name, amount, category, sort_order FROM bills ORDER BY sort_order');
+  const { rows: paidBills } = await pool.query(
+    'SELECT mp.month_id, b.app_id AS bill_id FROM month_paid_bills mp JOIN bills b ON b.id = mp.bill_id'
+  );
+  const { rows: overrides } = await pool.query(
+    'SELECT mo.month_id, b.app_id AS bill_id, mo.amount FROM month_bill_overrides mo JOIN bills b ON b.id = mo.bill_id'
+  );
+
+  // Drop FK tables, recreate bills with app_id as id, recreate FK tables
+  await pool.query('DROP TABLE IF EXISTS month_bill_overrides CASCADE');
+  await pool.query('DROP TABLE IF EXISTS month_paid_bills CASCADE');
+  await pool.query('DROP TABLE IF EXISTS bills CASCADE');
+
+  await pool.query(`
+    CREATE TABLE bills (
+      id INT PRIMARY KEY,
+      name TEXT NOT NULL,
+      amount NUMERIC(12,2) NOT NULL DEFAULT 0,
+      category TEXT DEFAULT 'Other',
+      sort_order INT DEFAULT 0
+    )
+  `);
+  for (const b of bills) {
+    await pool.query('INSERT INTO bills (id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
+      [b.app_id, b.name, b.amount, b.category, b.sort_order]);
+  }
+
+  await pool.query(`
+    CREATE TABLE month_paid_bills (
+      id SERIAL PRIMARY KEY,
+      month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+      bill_id INT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+      UNIQUE (month_id, bill_id)
+    )
+  `);
+  for (const r of paidBills) {
+    await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [r.month_id, r.bill_id]);
+  }
+
+  await pool.query(`
+    CREATE TABLE month_bill_overrides (
+      id SERIAL PRIMARY KEY,
+      month_id INT NOT NULL REFERENCES months(id) ON DELETE CASCADE,
+      bill_id INT NOT NULL REFERENCES bills(id) ON DELETE CASCADE,
+      amount NUMERIC(12,2) NOT NULL,
+      UNIQUE (month_id, bill_id)
+    )
+  `);
+  for (const r of overrides) {
+    await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [r.month_id, r.bill_id, r.amount]);
+  }
+
+  console.log('Bills PK migration complete.');
 }
 
 /**
@@ -457,7 +529,7 @@ async function migrateIfNeeded() {
     for (let i = 0; i < data.budget_bills.length; i++) {
       const b = data.budget_bills[i];
       await pool.query(
-        'INSERT INTO bills (app_id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
+        'INSERT INTO bills (id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
         [b.id, b.name, b.amount, b.category || 'Other', i]
       );
     }
@@ -527,18 +599,12 @@ async function migrateIfNeeded() {
         );
       }
 
-      // Look up bill DB ids from app_ids for paid bills and overrides
-      const { rows: billLookup } = await pool.query('SELECT id, app_id FROM bills');
-      const bMap = Object.fromEntries(billLookup.map(b => [b.app_id, b.id]));
-
-      for (const appId of (m.paidBills || [])) {
-        const bId = bMap[appId];
-        if (bId) await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, bId]);
+      for (const billId of (m.paidBills || [])) {
+        await pool.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, billId]);
       }
 
-      for (const [appId, amt] of Object.entries(m.billOverrides || {})) {
-        const bId = bMap[parseInt(appId)];
-        if (bId) await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, bId, amt]);
+      for (const [billId, amt] of Object.entries(m.billOverrides || {})) {
+        await pool.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, parseInt(billId), amt]);
       }
     }
   }
@@ -582,7 +648,7 @@ async function migrateIfNeeded() {
 
 async function loadBills() {
   const { rows } = await pool.query('SELECT * FROM bills ORDER BY sort_order');
-  return rows.map(r => ({ id: r.app_id, name: r.name, amount: Number(r.amount), category: r.category }));
+  return rows.map(r => ({ id: r.id, name: r.name, amount: Number(r.amount), category: r.category }));
 }
 
 async function loadDebts() {
@@ -610,9 +676,9 @@ async function loadMonths() {
     const { rows: expenses } = await pool.query('SELECT * FROM month_expenses WHERE month_id = $1 ORDER BY id', [m.id]);
     const { rows: adjustments } = await pool.query('SELECT * FROM month_adjustments WHERE month_id = $1 ORDER BY id', [m.id]);
     const { rows: paidBills } = await pool.query(
-      'SELECT b.app_id AS bill_app_id FROM month_paid_bills mp JOIN bills b ON b.id = mp.bill_id WHERE mp.month_id = $1', [m.id]);
+      'SELECT bill_id FROM month_paid_bills WHERE month_id = $1', [m.id]);
     const { rows: overrides } = await pool.query(
-      'SELECT b.app_id AS bill_app_id, mo.amount FROM month_bill_overrides mo JOIN bills b ON b.id = mo.bill_id WHERE mo.month_id = $1', [m.id]);
+      'SELECT bill_id, amount FROM month_bill_overrides WHERE month_id = $1', [m.id]);
 
     const month = {
       id: m.app_id, name: m.name, year: m.year, notes: m.notes || '',
@@ -622,8 +688,8 @@ async function loadMonths() {
       }),
       expenses: expenses.map(e => ({ label: e.label, amount: Number(e.amount) })),
       adjustments: adjustments.map(a => ({ label: a.label, amount: Number(a.amount) })),
-      paidBills: paidBills.map(p => p.bill_app_id),
-      billOverrides: Object.fromEntries(overrides.map(o => [String(o.bill_app_id), Number(o.amount)])),
+      paidBills: paidBills.map(p => p.bill_id),
+      billOverrides: Object.fromEntries(overrides.map(o => [String(o.bill_id), Number(o.amount)])),
     };
     if (m.bank_balance !== null) month.bankBalance = Number(m.bank_balance);
     if (m.amex_balance !== null) month.amexBalance = Number(m.amex_balance);
@@ -691,7 +757,7 @@ async function saveBills(bills) {
     await client.query('DELETE FROM bills');
     for (let i = 0; i < bills.length; i++) {
       const b = bills[i];
-      await client.query('INSERT INTO bills (app_id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
+      await client.query('INSERT INTO bills (id, name, amount, category, sort_order) VALUES ($1, $2, $3, $4, $5)',
         [b.id, b.name, b.amount, b.category || 'Other', i]);
     }
   });
@@ -728,10 +794,6 @@ async function saveMonths(months) {
     const tmplMap = {};
     for (const t of tmplRows) tmplMap[`${t.person}_${t.pay_type}`] = t.id;
 
-    // Build bill app_id -> id lookup
-    const { rows: billRows } = await client.query('SELECT id, app_id FROM bills');
-    const billMap = Object.fromEntries(billRows.map(b => [b.app_id, b.id]));
-
     await client.query('DELETE FROM months');
 
     for (let i = 0; i < months.length; i++) {
@@ -759,13 +821,11 @@ async function saveMonths(months) {
       for (const a of (m.adjustments || [])) {
         await client.query('INSERT INTO month_adjustments (month_id, label, amount) VALUES ($1, $2, $3)', [mid, a.label, a.amount]);
       }
-      for (const appId of (m.paidBills || [])) {
-        const bId = billMap[appId];
-        if (bId) await client.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, bId]);
+      for (const billId of (m.paidBills || [])) {
+        await client.query('INSERT INTO month_paid_bills (month_id, bill_id) VALUES ($1, $2)', [mid, billId]);
       }
-      for (const [appId, amt] of Object.entries(m.billOverrides || {})) {
-        const bId = billMap[parseInt(appId)];
-        if (bId) await client.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, bId, amt]);
+      for (const [billId, amt] of Object.entries(m.billOverrides || {})) {
+        await client.query('INSERT INTO month_bill_overrides (month_id, bill_id, amount) VALUES ($1, $2, $3)', [mid, parseInt(billId), amt]);
       }
     }
   });
