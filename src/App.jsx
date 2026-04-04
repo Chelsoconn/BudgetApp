@@ -204,7 +204,6 @@ function AuthenticatedApp({ onLogout }) {
           };
           if (setters[key]) {
             setters[key](data);
-            try { localStorage.setItem(key, JSON.stringify(data)); } catch {}
           }
         }} />}
         <Routes>
